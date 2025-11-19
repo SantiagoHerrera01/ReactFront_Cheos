@@ -8,12 +8,9 @@ export function UserProvider({ children }) {
   const [token, setToken] = useState(null)
   const [loading, setLoading] = useState(true)
 
-  // 🧩 Reconstruir usuario desde cookie
+  // 🧩 Reconstruir usuario desde localStorage
   useEffect(() => {
-    const savedToken = document.cookie
-      .split('; ')
-      .find(row => row.startsWith('access_token='))
-      ?.split('=')[1]
+    const savedToken = localStorage.getItem("access_token")
 
     if (!savedToken) {
       setLoading(false)
@@ -23,6 +20,7 @@ export function UserProvider({ children }) {
     setToken(savedToken)
 
     fetch(`${API_BASE}/users/me`, {
+      method: 'GET',
       headers: {
         'Authorization': `Bearer ${savedToken}`,
         'Content-Type': 'application/json'
@@ -30,18 +28,13 @@ export function UserProvider({ children }) {
     })
       .then(res => res.json())
       .then(data => {
-        if (data.success) setUser(data.data)
-        else {
-          setUser(null)
-          setToken(null)
-          document.cookie = 'access_token=; Max-Age=0; path=/'
+        if (data.success) {
+          setUser(data.data)
+        } else {
+          logout()
         }
       })
-      .catch(() => {
-        setUser(null)
-        setToken(null)
-        document.cookie = 'access_token=; Max-Age=0; path=/'
-      })
+      .catch(() => logout())
       .finally(() => setLoading(false))
   }, [])
 
@@ -54,15 +47,21 @@ export function UserProvider({ children }) {
         body: JSON.stringify({ email, password }),
         credentials: 'include',
       })
+
       const data = await res.json()
       if (!res.ok) return { success: false, message: data.message }
 
-      setToken(data.data.access_token)
-      document.cookie = `access_token=${data.data.access_token}; path=/; samesite=lax`
+      // Guardar token en localStorage
+      const accessToken = data.data.access_token
+      localStorage.setItem("access_token", accessToken)
+      setToken(accessToken)
 
+      // Obtener perfil del usuario
       const userRes = await fetch(`${API_BASE}/users/me`, {
-        headers: { 'Authorization': `Bearer ${data.data.access_token}` }
+        method: "GET",
+        headers: { 'Authorization': `Bearer ${accessToken}` }
       })
+
       const userData = await userRes.json()
       if (userRes.ok && userData.success) setUser(userData.data)
 
@@ -72,14 +71,15 @@ export function UserProvider({ children }) {
     }
   }
 
-  // 🆕 Register (agregado)
+  // 🆕 Register
   const register = async ({ name, email, password, phone }) => {
     try {
       const res = await fetch(`${API_BASE}/auth/register`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ name, email, password, phone }),
+        body: JSON.stringify({ name, email, password, phone })
       })
+
       const data = await res.json()
       if (!res.ok) return { success: false, message: data.message }
 
@@ -93,10 +93,9 @@ export function UserProvider({ children }) {
   const logout = () => {
     setUser(null)
     setToken(null)
-    document.cookie = 'access_token=; Max-Age=0; path=/'
+    localStorage.removeItem("access_token")
   }
 
-  // 📦 Contexto completo
   return (
     <UserContext.Provider value={{ user, token, loading, login, register, logout }}>
       {children}

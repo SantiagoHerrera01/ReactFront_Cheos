@@ -32,7 +32,7 @@ const handleDelete = () => {
   onDelete?.(product.id)
 }
   return (
-    <div className="relative w-[260px] h-[400px] bg-white rounded-2xl shadow-lg border border-gray-100 flex-shrink-0 hover:shadow-xl transition-transform duration-200 overflow-hidden">
+    <div className="relative w-full md:w-[260px] h-auto md:h-[400px] bg-white rounded-2xl shadow-lg border border-gray-100 flex-shrink-0 hover:shadow-xl transition overflow-hidden">
       {/* Imagen */}
       <div className="relative h-44 w-full overflow-hidden">
         <img
