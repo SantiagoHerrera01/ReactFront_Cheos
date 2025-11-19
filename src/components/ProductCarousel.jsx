@@ -2,12 +2,15 @@ import React, { useEffect, useRef, useState } from 'react'
 import { getProducts } from '../routes/products'
 import { useCart } from '../context/CartContext'
 import { useUser } from '../context/UserContext'
+import { useAlert } from '../context/AlertContext'
 import ProductCard from './ProductCard'
 import AddProductModal from './AddProductModal'
 import EditProductModal from './EditProductModal'
 import { ChevronLeft, ChevronRight } from 'lucide-react'
 
+
 export default function ProductCarousel() {
+  const API_BASE = import.meta.env.VITE_API_URL || "http://localhost:8080/api/v1";
   const [products, setProducts] = useState([])
   const [loading, setLoading] = useState(true)
   const [addOpen, setAddOpen] = useState(false)
@@ -15,14 +18,15 @@ export default function ProductCarousel() {
   const [editProduct, setEditProduct] = useState(null)
   const carouselRef = useRef(null)
 
-  const { addToCart } = useCart()
   const { user, token } = useUser()
+  const { successToast, errorAlert } = useAlert()
   const isAdmin = user?.role === 'ADMIN'
 
   const loadProducts = async () => {
     setLoading(true)
     try {
       const data = await getProducts()
+
       let arr = []
 
       if (Array.isArray(data)) arr = data
@@ -45,7 +49,7 @@ export default function ProductCarousel() {
 
   const handleDelete = async (id) => {
     try {
-      const res = await fetch(`${import.meta.env.VITE_API_URL}/products/${id}`, {
+      const res = await fetch(`${API_BASE}/products/${id}`, {
         method: 'DELETE',
         headers: {
           'Authorization': `Bearer ${token}`,
@@ -53,14 +57,15 @@ export default function ProductCarousel() {
       })
 
       if (!res.ok) {
-        alert("Error eliminando")
+        errorAlert('Error eliminando el producto')
         return
       }
 
-      alert("Producto eliminado")
+      successToast('Producto eliminado')
       loadProducts()
     } catch (e) {
       console.error(e)
+      errorAlert('No se pudo eliminar')
     }
   }
 
@@ -89,7 +94,7 @@ export default function ProductCarousel() {
           <p className="text-center text-gray-600">Cargando...</p>
         ) : (
           <>
-            {/* 📱 MOBILE — Grid vertical */}
+            {/* MOBILE */}
             <div className="grid grid-cols-1 sm:grid-cols-2 gap-6 md:hidden">
               {isAdmin && (
                 <div
@@ -114,9 +119,8 @@ export default function ProductCarousel() {
               ))}
             </div>
 
-            {/* 🖥️ DESKTOP — Carrusel */}
+            {/* DESKTOP */}
             <div className="hidden md:flex items-center relative">
-              
               <button
                 onClick={() => scroll('left')}
                 className="absolute left-[-50px] top-1/2 -translate-y-1/2 

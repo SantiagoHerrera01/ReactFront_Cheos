@@ -1,11 +1,13 @@
 import React from 'react'
 import { useCart } from '../context/CartContext'
 import { useUser } from '../context/UserContext'
+import { useAlert } from '../context/AlertContext'
 import { Pencil, Trash2 } from 'lucide-react'
 
 export default function ProductCard({ product, onOpenCart, onEdit, onDelete }) {
   const { addToCart } = useCart()
   const { user } = useUser()
+  const { confirmDelete } = useAlert()
   const isAdmin = user?.role === 'ADMIN'
 
   const handleAdd = () => {
@@ -13,27 +15,21 @@ export default function ProductCard({ product, onOpenCart, onEdit, onDelete }) {
     if (onOpenCart) onOpenCart()
   }
 
-  // 🔧 Lógica de edición
   const handleEdit = () => {
     if (!onEdit) return
     onEdit(product)
   }
 
-  // 🔧 Lógica de eliminación (con confirmación)
-const handleDelete = () => {
-  if (!window.confirm(`¿Seguro que deseas eliminar "${product.name}"?`)) return
+  // 🔧 Eliminar con SweetAlert global
+  const handleDelete = async () => {
+    const ok = await confirmDelete(product.name);
 
-  console.log("🗑️ Intentando eliminar producto:", product) // 👈 log completo
-  if (!product?.id) {
-    alert("⚠️ Este producto no tiene ID, no se puede eliminar.")
-    return
+    if (!ok) return
+    onDelete?.(product.id)
   }
 
-  onDelete?.(product.id)
-}
   return (
     <div className="relative w-full md:w-[260px] h-auto md:h-[400px] bg-white rounded-2xl shadow-lg border border-gray-100 flex-shrink-0 hover:shadow-xl transition overflow-hidden">
-      {/* Imagen */}
       <div className="relative h-44 w-full overflow-hidden">
         <img
           src={product.images?.[0] || product.image}
@@ -41,7 +37,6 @@ const handleDelete = () => {
           className="w-full h-full object-cover"
         />
 
-        {/* Iconos solo para admin */}
         {isAdmin && (
           <div className="absolute top-2 right-2 flex gap-2">
             <button
@@ -62,7 +57,6 @@ const handleDelete = () => {
         )}
       </div>
 
-      {/* Contenido */}
       <div className="p-4 flex flex-col justify-between h-[calc(100%-176px)]">
         <div className="overflow-hidden">
           <h3 className="font-semibold text-black text-base line-clamp-1">{product.name}</h3>
