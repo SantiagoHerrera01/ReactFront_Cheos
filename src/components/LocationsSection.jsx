@@ -2,6 +2,11 @@ import React, { useEffect, useRef, useState } from "react";
 import { Pencil, Trash2, Plus, ChevronLeft, ChevronRight } from "lucide-react";
 import { useUser } from "../context/UserContext";
 import LocationModal from "./LocationModal";
+import { getLocations, deleteLocation } from "../routes/locations";
+// import Swal from "sweetalert2";
+import { useAlert } from "../context/AlertContext";
+
+
 
 export default function LocationsSection() {
   const API_BASE = import.meta.env.VITE_API_URL || "http://localhost:8080/api/v1";
@@ -11,19 +16,18 @@ export default function LocationsSection() {
   const carouselRef = useRef(null);
   const { user, token } = useUser();
   const isAdmin = user?.role === "ADMIN";
+  const { confirmDelete, successToast, errorAlert } = useAlert();
 
-  const loadLocations = async () => {
-    try {
-      const res = await fetch(`${API_BASE}/locations/all`, {
-        headers: token ? { Authorization: `Bearer ${token}` } : undefined,
-      });
-      const json = await res.json();
-      const locations = json?.data?.locations ?? [];
-      setLocs(locations);
-    } catch (err) {
-      console.error("Error al cargar ubicaciones:", err);
-    }
-  };
+const loadLocations = async () => {
+  try {
+    const json = await getLocations(API_BASE, token);
+    const locations = json?.data?.locations ?? [];
+    setLocs(locations);
+  } catch (err) {
+    console.error("Error al cargar ubicaciones:", err);
+  }
+};
+
 
   useEffect(() => {
     loadLocations();
@@ -39,29 +43,27 @@ export default function LocationsSection() {
     setModalOpen(true);
   };
 
-  const handleDelete = async (id) => {
-    if (!window.confirm("¿Seguro de eliminar esta ubicación?")) return;
+const handleDelete = async (id) => {
+  const ok = await confirmDelete("ubicación"); // 🔥 Reutilizable para todo
 
-    try {
-      const res = await fetch(`${API_BASE}/locations/${id}`, {
-        method: "DELETE",
-        headers: {
-          "Content-Type": "application/json",
-          ...(token ? { Authorization: `Bearer ${token}` } : {}),
-        },
-      });
+  if (!ok) return;
 
-      if (!res.ok) {
-        alert("Error eliminando ubicación");
-        return;
-      }
+  try {
+    const res = await deleteLocation(API_BASE, id, token);
 
-      loadLocations();
-    } catch (err) {
-      console.error(err);
-      alert("Error de red al eliminar la ubicación");
+    if (!res.ok) {
+      errorAlert("Error eliminando ubicación");
+      return;
     }
-  };
+
+    successToast("Ubicación eliminada");
+    loadLocations();
+  } catch (err) {
+    console.error(err);
+    errorAlert("Error de red al eliminar la ubicación");
+  }
+};
+
 
   const scroll = (dir) => {
     const container = carouselRef.current;

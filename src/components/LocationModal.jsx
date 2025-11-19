@@ -1,5 +1,7 @@
 import React, { useState, useEffect } from "react";
 import { useUser } from "../context/UserContext";
+import { createLocation, updateLocation } from "../routes/locations";
+
 
 export default function LocationModal({ open, onClose, location, onSaved }) {
   const API_BASE = import.meta.env.VITE_API_URL || "http://localhost:8080/api/v1";
@@ -37,39 +39,46 @@ export default function LocationModal({ open, onClose, location, onSaved }) {
   }, [location, open]);
 
   const handleSubmit = async () => {
-    setError("");
-    setLoading(true);
+  setError("");
+  setLoading(true);
 
-    const body = { name, address, city, department, phone, map_iframe: mapIframe, is_active: active };
-    const method = location ? "PUT" : "POST";
-    const url = location ? `${API_BASE}/locations/${location.id}` : `${API_BASE}/locations`;
-
-    try {
-      const res = await fetch(url, {
-        method,
-        headers: {
-          "Content-Type": "application/json",
-          ...(token ? { Authorization: `Bearer ${token}` } : {}),
-        },
-        body: JSON.stringify(body),
-      });
-
-      const json = await res.json().catch(() => ({}));
-
-      if (!res.ok) {
-        setError((json && (json.message || json.error)) || `Error ${res.status} al guardar la ubicación`);
-        setLoading(false);
-        return;
-      }
-
-      onSaved?.();
-      onClose?.();
-    } catch (err) {
-      setError(err.message || "Error de red al guardar la ubicación");
-    } finally {
-      setLoading(false);
-    }
+  const body = {
+    name,
+    address,
+    city,
+    department,
+    phone,
+    map_iframe: mapIframe,
+    is_active: active,
   };
+
+  try {
+    let json;
+
+    if (location) {
+      // UPDATE
+      json = await updateLocation(API_BASE, location.id, body, token);
+    } else {
+      // CREATE
+      json = await createLocation(API_BASE, body, token);
+    }
+
+    if (!json || json.error || json.message === "Error") {
+      setError(json?.message || json?.error || "Error al guardar la ubicación");
+      setLoading(false);
+      return;
+    }
+
+    onSaved?.();
+    onClose?.();
+  } catch (err) {
+    console.error(err);
+    setError("Error de red al guardar la ubicación");
+  } finally {
+    setLoading(false);
+  }
+};
+
 
   if (!open) return null;
 
