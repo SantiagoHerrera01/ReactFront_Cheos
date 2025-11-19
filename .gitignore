@@ -51,3 +51,4 @@ coverage/
 # === Tailwind / PostCSS cache ===
 .postcss-cache/
 .tailwindcache/
+env.url
