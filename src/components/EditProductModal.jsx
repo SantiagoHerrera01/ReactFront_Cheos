@@ -1,4 +1,5 @@
 import React, { useState, useEffect } from 'react'
+import GalleryImageSelector from './GalleryImageSelector'
 
 export default function EditProductModal({ open, onClose, product, onUpdated, token }) {
   const API_BASE = 'http://localhost:8080/api/v1'
@@ -9,9 +10,9 @@ export default function EditProductModal({ open, onClose, product, onUpdated, to
     stock: '',
     category: '',
     weight: '',
-    images: '',
     is_featured: false
   })
+  const [selectedImages, setSelectedImages] = useState([])
   const [loading, setLoading] = useState(false)
 
   useEffect(() => {
@@ -23,9 +24,9 @@ export default function EditProductModal({ open, onClose, product, onUpdated, to
         stock: product.stock || '',
         category: product.category || '',
         weight: product.weight || '',
-        images: (product.images || []).join(', '),
         is_featured: product.is_featured || false
       })
+      setSelectedImages(product.images || [])
     }
   }, [product])
 
@@ -47,7 +48,7 @@ export default function EditProductModal({ open, onClose, product, onUpdated, to
       price: parseFloat(form.price),
       stock: parseInt(form.stock || '0'),
       weight: parseInt(form.weight || '0'),
-      images: form.images.split(',').map(i => i.trim()).filter(Boolean)
+      images: selectedImages
     }
 
     setLoading(true)
@@ -113,10 +114,12 @@ export default function EditProductModal({ open, onClose, product, onUpdated, to
             </div>
           </div>
 
-          <div>
-            <label className="block text-sm font-medium">URLs de imágenes (separadas por coma)</label>
-            <input name="images" value={form.images} onChange={handleChange} className="w-full p-2 border rounded-lg" />
-          </div>
+          <GalleryImageSelector
+            selectedImages={selectedImages}
+            onImagesChange={setSelectedImages}
+            token={token}
+            singleSelect={true}
+          />
 
           <label className="flex items-center gap-2 text-sm">
             <input type="checkbox" name="is_featured" checked={form.is_featured} onChange={handleChange} />

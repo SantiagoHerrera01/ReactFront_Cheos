@@ -4,6 +4,7 @@ import { useCart } from '../context/CartContext'
 import { useUser } from '../context/UserContext'
 import ModalLoginRegister from './ModalLoginRegister'
 import UserManagementModal from './UserManagementModal'
+import GalleryManagementModal from './GalleryManagementModal'
 
 export default function Navbar({ onCartToggle }) {
   const { cart } = useCart()
@@ -14,6 +15,7 @@ export default function Navbar({ onCartToggle }) {
   const [modalOpen, setModalOpen] = useState(false)
   const [dropdownOpen, setDropdownOpen] = useState(false)
   const [userModalOpen, setUserModalOpen] = useState(false)
+  const [galleryModalOpen, setGalleryModalOpen] = useState(false)
 
   // Mientras carga el contexto, podemos mostrar un spinner o placeholder
   if (loading) return null
@@ -64,12 +66,20 @@ export default function Navbar({ onCartToggle }) {
                     <button className="px-4 py-2 text-left hover:bg-gray-100">Perfil</button>
 
                     {user.role === 'ADMIN' && (
-                      <button
-                        onClick={() => { setUserModalOpen(true); setDropdownOpen(false) }}
-                        className="px-4 py-2 text-left hover:bg-gray-100"
-                      >
-                        Gestión de usuarios
-                      </button>
+                      <>
+                        <button
+                          onClick={() => { setUserModalOpen(true); setDropdownOpen(false) }}
+                          className="px-4 py-2 text-left hover:bg-gray-100"
+                        >
+                          Gestión de usuarios
+                        </button>
+                        <button
+                          onClick={() => { setGalleryModalOpen(true); setDropdownOpen(false) }}
+                          className="px-4 py-2 text-left hover:bg-gray-100"
+                        >
+                          Gestión de galería
+                        </button>
+                      </>
                     )}
 
                     <button 
@@ -91,6 +101,9 @@ export default function Navbar({ onCartToggle }) {
 
       {/* Modal de gestión de usuarios */}
       {userModalOpen && <UserManagementModal onClose={()=>setUserModalOpen(false)} />}
+
+      {/* Modal de gestión de galería */}
+      {galleryModalOpen && <GalleryManagementModal onClose={()=>setGalleryModalOpen(false)} />}
     </>
   )
 }
