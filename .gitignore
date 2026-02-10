@@ -17,7 +17,6 @@ vite.config.ts.timestamp*
 .env
 .env.*.local
 .env.local
-.env.example
 
 # === Editor / IDE ===
 .vscode/
