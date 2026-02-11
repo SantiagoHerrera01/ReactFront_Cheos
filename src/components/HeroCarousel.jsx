@@ -1,9 +1,7 @@
 import React, { useEffect, useState } from 'react'
-import { getCarouselImages } from './CarouselEditorModal'
 
 const API_BASE = import.meta.env.VITE_API_URL || 'http://localhost:8080/api/v1'
 
-// Imágenes por defecto si no hay ninguna configurada
 const DEFAULT_IMAGES = [
   'https://images.unsplash.com/photo-1495474472287-4d71bcdd2085?w=1600&h=800&fit=crop',
   'https://images.unsplash.com/photo-1497935586351-b67a49e012bf?w=1600&h=800&fit=crop',
@@ -15,38 +13,38 @@ export default function HeroCarousel() {
   const [idx, setIdx] = useState(0)
   const [loading, setLoading] = useState(true)
 
-  useEffect(() => {
-    loadCarouselImages()
-  }, [])
-
   const loadCarouselImages = async () => {
     try {
-      // Primero intentar cargar desde localStorage
-      const savedImages = getCarouselImages()
-
-      if (savedImages && savedImages.length > 0) {
-        setImages(savedImages)
-        setLoading(false)
-        return
-      }
-
-      // Si no hay guardadas, cargar imágenes tipo CAROUSEL desde API
-      const res = await fetch(`${API_BASE}/gallery/type/CAROUSEL`)
+      // Cargar desde la API (Firebase)
+      const res = await fetch(`${API_BASE}/config/carousel`)
       if (res.ok) {
         const data = await res.json()
-        const carouselImages = (data.data || [])
+        const saved = data.data?.images || []
+
+        if (saved.length > 0) {
+          setImages(saved)
+          setLoading(false)
+          return
+        }
+      }
+
+      // Fallback: imágenes tipo CAROUSEL desde galería
+      const galleryRes = await fetch(`${API_BASE}/gallery/type/CAROUSEL`)
+      if (galleryRes.ok) {
+        const galleryData = await galleryRes.json()
+        const carouselImages = (galleryData.data || [])
           .filter(img => img.url)
           .map(img => img.url)
           .slice(0, 6)
 
         if (carouselImages.length > 0) {
           setImages(carouselImages)
-        } else {
-          setImages(DEFAULT_IMAGES)
+          setLoading(false)
+          return
         }
-      } else {
-        setImages(DEFAULT_IMAGES)
       }
+
+      setImages(DEFAULT_IMAGES)
     } catch (err) {
       console.error('Error loading carousel:', err)
       setImages(DEFAULT_IMAGES)
@@ -55,47 +53,27 @@ export default function HeroCarousel() {
     }
   }
 
-  // Auto-rotate carousel
+  useEffect(() => {
+    loadCarouselImages()
+  }, [])
+
+  // Auto-rotate
   useEffect(() => {
     if (images.length <= 1) return
-
-    const timer = setInterval(() => {
-      setIdx(i => (i + 1) % images.length)
-    }, 5000)
-
+    const timer = setInterval(() => setIdx(i => (i + 1) % images.length), 5000)
     return () => clearInterval(timer)
   }, [images.length])
 
-  // Escuchar cambios en localStorage (cuando el admin guarda)
+  // Escuchar cuando el admin actualiza el carrusel
   useEffect(() => {
-    const handleStorageChange = () => {
-      const savedImages = getCarouselImages()
-      if (savedImages && savedImages.length > 0) {
-        setImages(savedImages)
-        setIdx(0)
-      }
-    }
-
-    window.addEventListener('storage', handleStorageChange)
-
-    // También escuchar evento personalizado para cambios en la misma pestaña
-    window.addEventListener('carouselUpdated', handleStorageChange)
-
-    return () => {
-      window.removeEventListener('storage', handleStorageChange)
-      window.removeEventListener('carouselUpdated', handleStorageChange)
-    }
+    const handleUpdate = () => loadCarouselImages()
+    window.addEventListener('carouselUpdated', handleUpdate)
+    return () => window.removeEventListener('carouselUpdated', handleUpdate)
   }, [])
 
   if (loading) {
     return (
-      <section id="hero" className="relative h-[72vh] w-full overflow-hidden bg-gray-200 animate-pulse">
-        <div className="absolute inset-0 flex items-center justify-center">
-          <div className="text-center text-gray-400">
-            <p>Cargando...</p>
-          </div>
-        </div>
-      </section>
+      <section id="hero" className="relative h-[72vh] w-full overflow-hidden bg-gray-200 animate-pulse" />
     )
   }
 
@@ -125,7 +103,6 @@ export default function HeroCarousel() {
         </div>
       </div>
 
-      {/* Indicadores */}
       {images.length > 1 && (
         <div className="absolute bottom-6 left-1/2 -translate-x-1/2 flex gap-2">
           {images.map((_, i) => (

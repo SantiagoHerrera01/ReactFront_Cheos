@@ -3,7 +3,6 @@ import { X, Save, Image } from 'lucide-react'
 import { useUser } from '../context/UserContext'
 
 const API_BASE = import.meta.env.VITE_API_URL || 'http://localhost:8080/api/v1'
-const CAROUSEL_STORAGE_KEY = 'cheos_carousel_images'
 const MAX_CAROUSEL_IMAGES = 6
 
 export default function CarouselEditorModal({ onClose, onSave }) {
@@ -27,7 +26,6 @@ export default function CarouselEditorModal({ onClose, onSave }) {
       if (!res.ok) throw new Error('Error al cargar imágenes')
 
       const data = await res.json()
-      // Solo mostrar imágenes GENERAL y CAROUSEL
       const filtered = (data.data || []).filter(img =>
         img.url &&
         ['GENERAL', 'CAROUSEL'].includes(img.image_type)
@@ -40,12 +38,14 @@ export default function CarouselEditorModal({ onClose, onSave }) {
     }
   }
 
-  const loadSavedSelection = () => {
+  const loadSavedSelection = async () => {
     try {
-      const saved = localStorage.getItem(CAROUSEL_STORAGE_KEY)
-      if (saved) {
-        setSelectedImages(JSON.parse(saved))
-      }
+      const res = await fetch(`${API_BASE}/config/carousel`)
+      if (!res.ok) return
+
+      const data = await res.json()
+      const images = data.data?.images || []
+      setSelectedImages(images)
     } catch (err) {
       console.error('Error loading saved carousel:', err)
     }
@@ -65,10 +65,22 @@ export default function CarouselEditorModal({ onClose, onSave }) {
     })
   }
 
-  const handleSave = () => {
+  const handleSave = async () => {
     setSaving(true)
     try {
-      localStorage.setItem(CAROUSEL_STORAGE_KEY, JSON.stringify(selectedImages))
+      const res = await fetch(`${API_BASE}/config/carousel`, {
+        method: 'PUT',
+        headers: {
+          'Content-Type': 'application/json',
+          'Authorization': `Bearer ${token}`
+        },
+        body: JSON.stringify({ images: selectedImages })
+      })
+
+      if (!res.ok) {
+        const errData = await res.json().catch(() => ({}))
+        throw new Error(errData.message || 'Error al guardar')
+      }
 
       // Disparar evento para actualizar el carrusel en tiempo real
       window.dispatchEvent(new Event('carouselUpdated'))
@@ -78,7 +90,7 @@ export default function CarouselEditorModal({ onClose, onSave }) {
       onClose()
     } catch (err) {
       console.error(err)
-      alert('Error al guardar')
+      alert('Error al guardar: ' + err.message)
     } finally {
       setSaving(false)
     }
@@ -230,14 +242,4 @@ export default function CarouselEditorModal({ onClose, onSave }) {
       </div>
     </div>
   )
-}
-
-// Función para obtener las imágenes del carrusel desde localStorage
-export function getCarouselImages() {
-  try {
-    const saved = localStorage.getItem(CAROUSEL_STORAGE_KEY)
-    return saved ? JSON.parse(saved) : []
-  } catch {
-    return []
-  }
 }
