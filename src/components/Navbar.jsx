@@ -5,6 +5,7 @@ import { useUser } from '../context/UserContext'
 import ModalLoginRegister from './ModalLoginRegister'
 import UserManagementModal from './UserManagementModal'
 import GalleryManagementModal from './GalleryManagementModal'
+import CarouselEditorModal from './CarouselEditorModal'
 
 export default function Navbar({ onCartToggle }) {
   const { cart } = useCart()
@@ -16,9 +17,15 @@ export default function Navbar({ onCartToggle }) {
   const [dropdownOpen, setDropdownOpen] = useState(false)
   const [userModalOpen, setUserModalOpen] = useState(false)
   const [galleryModalOpen, setGalleryModalOpen] = useState(false)
+  const [carouselModalOpen, setCarouselModalOpen] = useState(false)
 
   // Mientras carga el contexto, podemos mostrar un spinner o placeholder
   if (loading) return null
+
+  const handleCarouselSave = () => {
+    // Disparar evento para que el HeroCarousel se actualice
+    window.dispatchEvent(new Event('carouselUpdated'))
+  }
 
   return (
     <>
@@ -46,27 +53,29 @@ export default function Navbar({ onCartToggle }) {
             </button>
 
             {!user ? (
-              <button 
-                onClick={()=>setModalOpen(true)} 
+              <button
+                onClick={()=>setModalOpen(true)}
                 className="flex items-center gap-1 bg-coffee text-white px-3 py-2 rounded-lg hover:bg-coffee/90"
               >
                 <User className="w-4 h-4"/> Iniciar Sesión
               </button>
             ) : (
               <div className="relative">
-                <button 
-                  onClick={()=>setDropdownOpen(!dropdownOpen)} 
+                <button
+                  onClick={()=>setDropdownOpen(!dropdownOpen)}
                   className="flex items-center gap-1 bg-gray-200 px-3 py-2 rounded-lg hover:bg-gray-300"
                 >
                   <User className="w-4 h-4"/> {user.name}
                 </button>
 
                 {dropdownOpen && (
-                  <div className="absolute right-0 mt-2 bg-white shadow-lg rounded-lg py-2 w-44 flex flex-col">
+                  <div className="absolute right-0 mt-2 bg-white shadow-lg rounded-lg py-2 w-48 flex flex-col">
                     <button className="px-4 py-2 text-left hover:bg-gray-100">Perfil</button>
 
                     {user.role === 'ADMIN' && (
                       <>
+                        <div className="border-t my-1"></div>
+                        <p className="px-4 py-1 text-xs text-gray-500 font-semibold">Admin</p>
                         <button
                           onClick={() => { setUserModalOpen(true); setDropdownOpen(false) }}
                           className="px-4 py-2 text-left hover:bg-gray-100"
@@ -79,12 +88,19 @@ export default function Navbar({ onCartToggle }) {
                         >
                           Gestión de galería
                         </button>
+                        <button
+                          onClick={() => { setCarouselModalOpen(true); setDropdownOpen(false) }}
+                          className="px-4 py-2 text-left hover:bg-gray-100"
+                        >
+                          Editar carrusel
+                        </button>
                       </>
                     )}
 
-                    <button 
-                      onClick={() => { logout(); setDropdownOpen(false) }} 
-                      className="px-4 py-2 text-left hover:bg-gray-100"
+                    <div className="border-t my-1"></div>
+                    <button
+                      onClick={() => { logout(); setDropdownOpen(false) }}
+                      className="px-4 py-2 text-left hover:bg-gray-100 text-red-600"
                     >
                       Cerrar Sesión
                     </button>
@@ -104,6 +120,14 @@ export default function Navbar({ onCartToggle }) {
 
       {/* Modal de gestión de galería */}
       {galleryModalOpen && <GalleryManagementModal onClose={()=>setGalleryModalOpen(false)} />}
+
+      {/* Modal de edición de carrusel */}
+      {carouselModalOpen && (
+        <CarouselEditorModal
+          onClose={() => setCarouselModalOpen(false)}
+          onSave={handleCarouselSave}
+        />
+      )}
     </>
   )
 }

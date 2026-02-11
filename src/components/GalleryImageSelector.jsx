@@ -1,6 +1,12 @@
 import React, { useState, useEffect } from 'react'
 
-export default function GalleryImageSelector({ selectedImages = [], onImagesChange, token, singleSelect = false }) {
+export default function GalleryImageSelector({
+  selectedImages = [],
+  onImagesChange,
+  token,
+  singleSelect = false,
+  allowedTypes = ['GENERAL', 'PRODUCT'] // Tipos permitidos por defecto
+}) {
   const API_BASE = import.meta.env.VITE_API_URL || 'http://localhost:8080/api/v1'
   const [galleryImages, setGalleryImages] = useState([])
   const [loading, setLoading] = useState(false)
@@ -29,8 +35,12 @@ export default function GalleryImageSelector({ selectedImages = [], onImagesChan
       }
 
       const data = await res.json()
-      // Filter out images without valid URLs
-      const validImages = (data.data || []).filter(img => img.url && img.url.trim() !== '')
+      // Filter by valid URLs and allowed types
+      const validImages = (data.data || []).filter(img =>
+        img.url &&
+        img.url.trim() !== '' &&
+        allowedTypes.includes(img.image_type)
+      )
       setGalleryImages(validImages)
     } catch (err) {
       console.error('Error cargando galería:', err)
@@ -42,11 +52,9 @@ export default function GalleryImageSelector({ selectedImages = [], onImagesChan
 
   const toggleImageSelection = (imageUrl) => {
     if (singleSelect) {
-      // Modo selección única: si ya está seleccionada, la deselecciona; si no, reemplaza la selección
       const newSelection = selectedImages.includes(imageUrl) ? [] : [imageUrl]
       onImagesChange(newSelection)
     } else {
-      // Modo selección múltiple
       const newSelection = selectedImages.includes(imageUrl)
         ? selectedImages.filter(url => url !== imageUrl)
         : [...selectedImages, imageUrl]
@@ -124,7 +132,7 @@ export default function GalleryImageSelector({ selectedImages = [], onImagesChan
 
           {!loading && !error && galleryImages.length === 0 && (
             <p className="text-sm text-gray-500 text-center py-4">
-              No hay imágenes en la galería. Sube imágenes primero.
+              No hay imágenes disponibles ({allowedTypes.join(', ')})
             </p>
           )}
 
@@ -139,7 +147,7 @@ export default function GalleryImageSelector({ selectedImages = [], onImagesChan
                       ? 'border-coffee shadow-md'
                       : 'border-transparent hover:border-gray-300'
                   }`}
-                  title={image.title || 'Sin título'}
+                  title={`${image.title || 'Sin título'} (${image.image_type})`}
                 >
                   <img
                     src={image.url || ''}
@@ -154,29 +162,15 @@ export default function GalleryImageSelector({ selectedImages = [], onImagesChan
                       <span className="text-white text-2xl">✓</span>
                     </div>
                   )}
+                  <span className="absolute bottom-0 left-0 right-0 bg-black/50 text-white text-[10px] px-1 truncate">
+                    {image.image_type}
+                  </span>
                 </div>
               ))}
             </div>
           )}
         </div>
       )}
-
-      {/* Manual URL Input (fallback) */}
-      <details className="mt-3">
-        <summary className="text-xs text-gray-500 cursor-pointer hover:text-coffee">
-          O agregar URLs manualmente
-        </summary>
-        <input
-          type="text"
-          placeholder="URLs separadas por coma"
-          value={selectedImages.join(', ')}
-          onChange={(e) => {
-            const urls = e.target.value.split(',').map(u => u.trim()).filter(Boolean)
-            onImagesChange(urls)
-          }}
-          className="w-full mt-2 p-2 border rounded-lg text-sm"
-        />
-      </details>
     </div>
   )
 }
