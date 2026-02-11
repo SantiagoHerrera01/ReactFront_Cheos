@@ -5,7 +5,7 @@ const AlertContext = createContext();
 
 export function AlertProvider({ children }) {
 
-  // 🔥 Siempre mismo formato de alerta
+  // 🔥 Confirmar eliminación
   const confirmDelete = async (resourceName = "elemento") => {
     const name =
       typeof resourceName === "string"
@@ -26,6 +26,7 @@ export function AlertProvider({ children }) {
     return result.isConfirmed;
   };
 
+  // ✅ Toast genérico de éxito
   const successToast = (message = "Acción completada") => {
     Swal.fire({
       toast: true,
@@ -37,12 +38,32 @@ export function AlertProvider({ children }) {
     });
   };
 
+  // 🆕 Toast específico para creación
+  const createdToast = (resource = "Elemento") => {
+    Swal.fire({
+      toast: true,
+      position: "top-end",
+      icon: "success",
+      title: `${resource} creado correctamente`,
+      showConfirmButton: false,
+      timer: 2000,
+    });
+  };
+
+  // ❌ Error
   const errorAlert = (message = "Ocurrió un error") => {
     Swal.fire("Error", message, "error");
   };
 
   return (
-    <AlertContext.Provider value={{ confirmDelete, successToast, errorAlert }}>
+    <AlertContext.Provider
+      value={{
+        confirmDelete,
+        successToast,
+        createdToast, // 👈 IMPORTANTE
+        errorAlert,
+      }}
+    >
       {children}
     </AlertContext.Provider>
   );
