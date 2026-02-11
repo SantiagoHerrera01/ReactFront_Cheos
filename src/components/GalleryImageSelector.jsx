@@ -1,7 +1,7 @@
 import React, { useState, useEffect } from 'react'
 
 export default function GalleryImageSelector({ selectedImages = [], onImagesChange, token, singleSelect = false }) {
-  const API_BASE = 'http://localhost:8080/api/v1'
+  const API_BASE = import.meta.env.VITE_API_URL || 'http://localhost:8080/api/v1'
   const [galleryImages, setGalleryImages] = useState([])
   const [loading, setLoading] = useState(false)
   const [error, setError] = useState(null)

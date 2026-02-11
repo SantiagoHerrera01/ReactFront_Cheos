@@ -2,7 +2,7 @@ import React, { useState, useEffect } from 'react'
 import GalleryImageSelector from './GalleryImageSelector'
 
 export default function EditProductModal({ open, onClose, product, onUpdated, token }) {
-  const API_BASE = 'http://localhost:8080/api/v1'
+  const API_BASE = import.meta.env.VITE_API_URL || 'http://localhost:8080/api/v1'
   const [form, setForm] = useState({
     name: '',
     description: '',
