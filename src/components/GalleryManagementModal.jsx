@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react'
-import { Upload, Trash2, X } from 'lucide-react'
+import { Upload, Trash2, X, Pencil, Save } from 'lucide-react'
 import { useUser } from '../context/UserContext'
 
 export default function GalleryManagementModal({ onClose }) {
@@ -15,27 +15,45 @@ export default function GalleryManagementModal({ onClose }) {
   const [uploadForm, setUploadForm] = useState({
     title: '',
     description: '',
-    image_type: 'GENERAL',
-    tags: '',
-    is_active: true
+    image_type: 'GENERAL'
   })
 
+  // Edit state
+  const [editingId, setEditingId] = useState(null)
+  const [editForm, setEditForm] = useState({
+    title: '',
+    description: '',
+    image_type: ''
+  })
+  const [saving, setSaving] = useState(false)
+
   useEffect(() => {
-    fetchGalleryImages()
-  }, [])
+    if (token) {
+      fetchGalleryImages()
+    }
+  }, [token])
 
   const fetchGalleryImages = async () => {
+    if (!token) {
+      console.warn('No hay token disponible')
+      return
+    }
+
     setLoading(true)
     try {
       const res = await fetch(`${API_BASE}/gallery`, {
         headers: { 'Authorization': `Bearer ${token}` }
       })
-      if (!res.ok) throw new Error('Error al cargar imágenes')
+
+      if (!res.ok) {
+        const errData = await res.json().catch(() => ({}))
+        throw new Error(errData.message || `Error ${res.status}`)
+      }
+
       const data = await res.json()
       setGalleryImages(data.data || [])
     } catch (err) {
-      console.error(err)
-      alert('❌ No se pudieron cargar las imágenes')
+      console.error('Error al cargar galería:', err)
     } finally {
       setLoading(false)
     }
@@ -45,16 +63,14 @@ export default function GalleryManagementModal({ onClose }) {
     const file = e.target.files[0]
     if (!file) return
 
-    // Validate file type
     const validTypes = ['image/jpeg', 'image/jpg', 'image/png', 'image/webp', 'image/gif']
     if (!validTypes.includes(file.type)) {
-      alert('⚠️ Solo se permiten imágenes (JPG, PNG, WEBP, GIF)')
+      alert('Solo se permiten imágenes (JPG, PNG, WEBP, GIF)')
       return
     }
 
-    // Validate file size (10MB max)
     if (file.size > 10 * 1024 * 1024) {
-      alert('⚠️ La imagen es demasiado grande. Máximo 10MB')
+      alert('La imagen es demasiado grande. Máximo 10MB')
       return
     }
 
@@ -65,7 +81,7 @@ export default function GalleryManagementModal({ onClose }) {
   const handleUploadSubmit = async (e) => {
     e.preventDefault()
     if (!selectedFile) {
-      alert('⚠️ Selecciona una imagen primero')
+      alert('Selecciona una imagen primero')
       return
     }
 
@@ -74,20 +90,13 @@ export default function GalleryManagementModal({ onClose }) {
     formData.append('title', uploadForm.title)
     formData.append('description', uploadForm.description)
     formData.append('image_type', uploadForm.image_type)
-    formData.append('is_active', uploadForm.is_active)
-
-    if (uploadForm.tags) {
-      const tagsArray = uploadForm.tags.split(',').map(t => t.trim()).filter(Boolean)
-      tagsArray.forEach(tag => formData.append('tags', tag))
-    }
+    formData.append('is_active', 'true')
 
     setUploading(true)
     try {
       const res = await fetch(`${API_BASE}/gallery/upload`, {
         method: 'POST',
-        headers: {
-          'Authorization': `Bearer ${token}`
-        },
+        headers: { 'Authorization': `Bearer ${token}` },
         body: formData
       })
 
@@ -96,24 +105,14 @@ export default function GalleryManagementModal({ onClose }) {
         throw new Error(error.error || 'Error al subir imagen')
       }
 
-      alert('✅ Imagen subida exitosamente')
-
-      // Reset form
+      alert('Imagen subida exitosamente')
       setSelectedFile(null)
       setPreviewUrl(null)
-      setUploadForm({
-        title: '',
-        description: '',
-        image_type: 'GENERAL',
-        tags: '',
-        is_active: true
-      })
-
-      // Reload gallery
+      setUploadForm({ title: '', description: '', image_type: 'GENERAL' })
       fetchGalleryImages()
     } catch (err) {
       console.error(err)
-      alert(`❌ ${err.message}`)
+      alert(err.message)
     } finally {
       setUploading(false)
     }
@@ -130,11 +129,60 @@ export default function GalleryManagementModal({ onClose }) {
 
       if (!res.ok) throw new Error('Error al eliminar')
 
-      alert('✅ Imagen eliminada')
+      alert('Imagen eliminada')
       fetchGalleryImages()
     } catch (err) {
       console.error(err)
-      alert('❌ No se pudo eliminar la imagen')
+      alert('No se pudo eliminar la imagen')
+    }
+  }
+
+  // Iniciar edición
+  const startEdit = (image) => {
+    setEditingId(image.id)
+    setEditForm({
+      title: image.title || '',
+      description: image.description || '',
+      image_type: image.image_type || 'GENERAL'
+    })
+  }
+
+  // Cancelar edición
+  const cancelEdit = () => {
+    setEditingId(null)
+    setEditForm({ title: '', description: '', image_type: '' })
+  }
+
+  // Guardar edición
+  const saveEdit = async (imageId) => {
+    setSaving(true)
+    try {
+      const res = await fetch(`${API_BASE}/gallery/${imageId}`, {
+        method: 'PUT',
+        headers: {
+          'Content-Type': 'application/json',
+          'Authorization': `Bearer ${token}`
+        },
+        body: JSON.stringify({
+          title: editForm.title,
+          description: editForm.description,
+          image_type: editForm.image_type
+        })
+      })
+
+      if (!res.ok) {
+        const errData = await res.json().catch(() => ({}))
+        throw new Error(errData.message || 'Error al actualizar')
+      }
+
+      alert('Imagen actualizada')
+      setEditingId(null)
+      fetchGalleryImages()
+    } catch (err) {
+      console.error(err)
+      alert(err.message)
+    } finally {
+      setSaving(false)
     }
   }
 
@@ -158,7 +206,6 @@ export default function GalleryManagementModal({ onClose }) {
               </h3>
 
               <form onSubmit={handleUploadSubmit} className="space-y-4">
-                {/* File Input */}
                 <div>
                   <label className="block text-sm font-medium mb-2">Seleccionar Imagen</label>
                   <input
@@ -172,7 +219,6 @@ export default function GalleryManagementModal({ onClose }) {
                   </p>
                 </div>
 
-                {/* Preview */}
                 {previewUrl && (
                   <div className="relative">
                     <img
@@ -190,7 +236,6 @@ export default function GalleryManagementModal({ onClose }) {
                   </div>
                 )}
 
-                {/* Title */}
                 <div>
                   <label className="block text-sm font-medium mb-1">Título</label>
                   <input
@@ -202,7 +247,6 @@ export default function GalleryManagementModal({ onClose }) {
                   />
                 </div>
 
-                {/* Description */}
                 <div>
                   <label className="block text-sm font-medium mb-1">Descripción</label>
                   <textarea
@@ -212,7 +256,6 @@ export default function GalleryManagementModal({ onClose }) {
                   />
                 </div>
 
-                {/* Image Type */}
                 <div>
                   <label className="block text-sm font-medium mb-1">Tipo de Imagen</label>
                   <select
@@ -227,29 +270,6 @@ export default function GalleryManagementModal({ onClose }) {
                   </select>
                 </div>
 
-                {/* Tags */}
-                <div>
-                  <label className="block text-sm font-medium mb-1">Etiquetas (separadas por coma)</label>
-                  <input
-                    type="text"
-                    value={uploadForm.tags}
-                    onChange={(e) => setUploadForm({ ...uploadForm, tags: e.target.value })}
-                    placeholder="cafe, colombiano, premium"
-                    className="w-full p-2 border rounded-lg"
-                  />
-                </div>
-
-                {/* Active */}
-                <label className="flex items-center gap-2 text-sm">
-                  <input
-                    type="checkbox"
-                    checked={uploadForm.is_active}
-                    onChange={(e) => setUploadForm({ ...uploadForm, is_active: e.target.checked })}
-                  />
-                  Imagen activa
-                </label>
-
-                {/* Submit */}
                 <button
                   type="submit"
                   disabled={uploading || !selectedFile}
@@ -273,34 +293,93 @@ export default function GalleryManagementModal({ onClose }) {
               <div className="space-y-3 max-h-[600px] overflow-y-auto pr-2">
                 {galleryImages.map((image) => (
                   <div key={image.id} className="border rounded-lg p-3 hover:shadow-md transition-shadow">
-                    <div className="flex gap-3">
-                      <img
-                        src={image.url}
-                        alt={image.title}
-                        className="w-24 h-24 object-cover rounded-lg"
-                      />
-                      <div className="flex-1 min-w-0">
-                        <h4 className="font-semibold text-sm truncate">{image.title}</h4>
-                        <p className="text-xs text-gray-500 line-clamp-2">{image.description}</p>
-                        <div className="flex gap-2 mt-2">
-                          <span className="text-xs bg-coffee/10 text-coffee px-2 py-1 rounded">
-                            {image.image_type}
-                          </span>
-                          {!image.is_active && (
-                            <span className="text-xs bg-gray-200 text-gray-600 px-2 py-1 rounded">
-                              Inactiva
-                            </span>
-                          )}
+                    {editingId === image.id ? (
+                      // Modo edición
+                      <div className="space-y-3">
+                        <div className="flex gap-3">
+                          <img
+                            src={image.url}
+                            alt={image.title}
+                            className="w-20 h-20 object-cover rounded-lg"
+                          />
+                          <div className="flex-1 space-y-2">
+                            <input
+                              type="text"
+                              value={editForm.title}
+                              onChange={(e) => setEditForm({ ...editForm, title: e.target.value })}
+                              className="w-full p-2 border rounded text-sm"
+                              placeholder="Título"
+                            />
+                            <textarea
+                              value={editForm.description}
+                              onChange={(e) => setEditForm({ ...editForm, description: e.target.value })}
+                              className="w-full p-2 border rounded text-sm h-16"
+                              placeholder="Descripción"
+                            />
+                          </div>
+                        </div>
+                        <div className="flex items-center gap-2">
+                          <select
+                            value={editForm.image_type}
+                            onChange={(e) => setEditForm({ ...editForm, image_type: e.target.value })}
+                            className="flex-1 p-2 border rounded text-sm"
+                          >
+                            <option value="GENERAL">General</option>
+                            <option value="PRODUCT">Producto</option>
+                            <option value="CAROUSEL">Carrusel</option>
+                            <option value="BACKGROUND">Fondo</option>
+                          </select>
+                          <button
+                            onClick={() => saveEdit(image.id)}
+                            disabled={saving}
+                            className="px-3 py-2 bg-green-500 text-white rounded hover:bg-green-600 disabled:opacity-50 flex items-center gap-1"
+                          >
+                            <Save className="w-4 h-4" />
+                            {saving ? '...' : 'Guardar'}
+                          </button>
+                          <button
+                            onClick={cancelEdit}
+                            className="px-3 py-2 bg-gray-200 rounded hover:bg-gray-300"
+                          >
+                            Cancelar
+                          </button>
                         </div>
                       </div>
-                      <button
-                        onClick={() => handleDelete(image.id)}
-                        className="p-2 hover:bg-red-50 rounded-lg text-red-500 h-fit"
-                        title="Eliminar"
-                      >
-                        <Trash2 className="w-4 h-4" />
-                      </button>
-                    </div>
+                    ) : (
+                      // Modo visualización
+                      <div className="flex gap-3">
+                        <img
+                          src={image.url}
+                          alt={image.title}
+                          className="w-24 h-24 object-cover rounded-lg"
+                        />
+                        <div className="flex-1 min-w-0">
+                          <h4 className="font-semibold text-sm truncate">{image.title}</h4>
+                          <p className="text-xs text-gray-500 line-clamp-2">{image.description}</p>
+                          <div className="flex gap-2 mt-2">
+                            <span className="text-xs bg-coffee/10 text-coffee px-2 py-1 rounded">
+                              {image.image_type}
+                            </span>
+                          </div>
+                        </div>
+                        <div className="flex flex-col gap-1">
+                          <button
+                            onClick={() => startEdit(image)}
+                            className="p-2 hover:bg-blue-50 rounded-lg text-blue-500"
+                            title="Editar"
+                          >
+                            <Pencil className="w-4 h-4" />
+                          </button>
+                          <button
+                            onClick={() => handleDelete(image.id)}
+                            className="p-2 hover:bg-red-50 rounded-lg text-red-500"
+                            title="Eliminar"
+                          >
+                            <Trash2 className="w-4 h-4" />
+                          </button>
+                        </div>
+                      </div>
+                    )}
                   </div>
                 ))}
               </div>
