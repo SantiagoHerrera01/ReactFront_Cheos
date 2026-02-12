@@ -1,16 +1,17 @@
 import React, { useEffect, useState } from 'react'
 import { X, Trash2 } from 'lucide-react'
 import { useUser } from '../context/UserContext'
+import { useAlert } from '../context/AlertContext' // 👈 IMPORTANTE
 
 const API_BASE = import.meta.env.VITE_API_URL || 'http://localhost:8080/api/v1'
 
 export default function UserManagementModal({ onClose }) {
   const { token, user: currentUser } = useUser()
+  const { confirmDelete, successToast, errorAlert } = useAlert() // 👈 ALERTS
   const [users, setUsers] = useState([])
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState(null)
 
-  // Cargar usuarios al abrir el modal
   useEffect(() => {
     if (!token) return
     fetchUsers()
@@ -27,12 +28,13 @@ export default function UserManagementModal({ onClose }) {
       setUsers(data.data || [])
     } catch (err) {
       setError(err.message)
+      errorAlert(err.message)
     } finally {
       setLoading(false)
     }
   }
 
-  // Cambiar rol
+  // ✅ Cambiar rol
   const updateRole = async (userId, newRole) => {
     try {
       const res = await fetch(`${API_BASE}/users/${userId}`, {
@@ -43,18 +45,21 @@ export default function UserManagementModal({ onClose }) {
         },
         body: JSON.stringify({ role: newRole })
       })
+
       if (!res.ok) {
         const errData = await res.json().catch(() => ({}))
         throw new Error(errData.message || 'Error al actualizar rol')
       }
+
       setUsers(users.map(u => u.id === userId ? { ...u, role: newRole } : u))
-      alert('✅ Rol actualizado correctamente')
+      successToast('Rol actualizado correctamente')
+
     } catch (err) {
-      alert('❌ ' + err.message)
+      errorAlert(err.message)
     }
   }
 
-  // Activar/desactivar usuario
+  // ✅ Activar / Desactivar
   const toggleActive = async (userId, isActive) => {
     try {
       const res = await fetch(`${API_BASE}/users/${userId}`, {
@@ -65,26 +70,29 @@ export default function UserManagementModal({ onClose }) {
         },
         body: JSON.stringify({ is_active: !isActive })
       })
+
       if (!res.ok) {
         const errData = await res.json().catch(() => ({}))
         throw new Error(errData.message || 'Error al actualizar estado')
       }
+
       setUsers(users.map(u => u.id === userId ? { ...u, is_active: !isActive } : u))
-      alert(`✅ Usuario ${!isActive ? 'activado' : 'desactivado'} correctamente`)
+      successToast(`Usuario ${!isActive ? 'activado' : 'desactivado'} correctamente`)
+
     } catch (err) {
-      alert('❌ ' + err.message)
+      errorAlert(err.message)
     }
   }
 
-  // Eliminar usuario
+  // ✅ Eliminar usuario
   const deleteUser = async (userId, userName) => {
-    // No permitir eliminarse a sí mismo
+
     if (currentUser && currentUser.id === userId) {
-      alert('❌ No puedes eliminarte a ti mismo')
+      errorAlert('No puedes eliminarte a ti mismo')
       return
     }
 
-    const confirmed = window.confirm(`¿Estás seguro de eliminar al usuario "${userName}"?\n\nEsta acción NO se puede deshacer.`)
+    const confirmed = await confirmDelete(userName)
     if (!confirmed) return
 
     try {
@@ -94,84 +102,129 @@ export default function UserManagementModal({ onClose }) {
           Authorization: `Bearer ${token}`
         }
       })
+
       if (!res.ok) {
         const errData = await res.json().catch(() => ({}))
         throw new Error(errData.message || 'Error al eliminar usuario')
       }
+
       setUsers(users.filter(u => u.id !== userId))
-      alert('✅ Usuario eliminado correctamente')
+      successToast('Usuario eliminado correctamente')
+
     } catch (err) {
-      alert('❌ ' + err.message)
+      errorAlert(err.message)
     }
   }
 
   return (
-    <div className="fixed inset-0 bg-black/50 flex justify-center items-start pt-20 z-50">
-      <div className="bg-white rounded-xl shadow-lg w-11/12 max-w-4xl p-6 relative max-h-[80vh] overflow-hidden flex flex-col">
-        <button onClick={onClose} className="absolute top-4 right-4 text-gray-500 hover:text-gray-700">
+    <div className="fixed inset-0 bg-black/60 backdrop-blur-sm flex justify-center items-start pt-20 z-50">
+      <div className="bg-white rounded-2xl shadow-2xl w-11/12 max-w-4xl p-8 relative max-h-[85vh] overflow-hidden flex flex-col border border-[#e6d5c9]">
+
+        <button
+          onClick={onClose}
+          className="absolute top-5 right-5 text-[#3b2f2f] hover:text-black transition"
+        >
           <X className="w-5 h-5"/>
         </button>
-        <h2 className="text-xl font-bold mb-4">Gestión de Usuarios</h2>
+
+        <h2 className="text-2xl font-bold mb-6 text-[#3b2f2f] tracking-wide">
+          Gestión de Usuarios
+        </h2>
 
         {loading ? (
-          <p>Cargando...</p>
+          <p className="text-[#3b2f2f]">Cargando...</p>
         ) : error ? (
           <p className="text-red-500">{error}</p>
         ) : (
-          <div className="overflow-auto flex-1">
-            <table className="w-full table-auto border border-gray-200">
-              <thead className="bg-gray-100 sticky top-0">
+          <div className="overflow-auto flex-1 rounded-xl border border-[#eadfd8]">
+
+            <table className="w-full text-sm">
+              <thead className="bg-[#f5ebe4] text-[#3b2f2f] sticky top-0">
                 <tr>
-                  <th className="px-4 py-2 border">Nombre</th>
-                  <th className="px-4 py-2 border">Email</th>
-                  <th className="px-4 py-2 border">Rol</th>
-                  <th className="px-4 py-2 border">Estado</th>
-                  <th className="px-4 py-2 border">Acciones</th>
+                  <th className="px-4 py-3 text-left font-semibold">Nombre</th>
+                  <th className="px-4 py-3 text-left font-semibold">Email</th>
+                  <th className="px-4 py-3 text-center font-semibold">Rol</th>
+                  <th className="px-4 py-3 text-center font-semibold">Estado</th>
+                  <th className="px-4 py-3 text-center font-semibold">Acciones</th>
                 </tr>
               </thead>
+
               <tbody>
                 {users.map(u => (
-                  <tr key={u.id} className={`text-center ${!u.is_active ? 'bg-red-50' : ''}`}>
-                    <td className="px-4 py-2 border">{u.name}</td>
-                    <td className="px-4 py-2 border text-sm">{u.email}</td>
-                    <td className="px-4 py-2 border">
+                  <tr
+                    key={u.id}
+                    className={`transition border-t border-[#f0e4dd] hover:bg-[#faf6f3] ${
+                      !u.is_active ? 'bg-[#fff4f4]' : ''
+                    }`}
+                  >
+                    <td className="px-4 py-3 text-[#3b2f2f] font-medium">
+                      {u.name}
+                    </td>
+
+                    <td className="px-4 py-3 text-gray-600 text-sm">
+                      {u.email}
+                    </td>
+
+                    <td className="px-4 py-3 text-center">
                       <select
                         value={u.role}
                         onChange={(e) => updateRole(u.id, e.target.value)}
-                        className={`border rounded px-2 py-1 ${u.role === 'ADMIN' ? 'bg-amber-100 font-semibold' : ''}`}
+                        className={`border border-[#d7c2b6] rounded-lg px-3 py-1 transition focus:outline-none focus:ring-2 focus:ring-[#3b2f2f] ${
+                          u.role === 'ADMIN'
+                            ? 'bg-[#e8d8cc] font-semibold text-[#3b2f2f]'
+                            : 'bg-white'
+                        }`}
                       >
                         <option value="CUSTOMER">CUSTOMER</option>
                         <option value="ADMIN">ADMIN</option>
                       </select>
                     </td>
-                    <td className="px-4 py-2 border">
-                      <span className={`px-2 py-1 rounded text-sm ${u.is_active ? 'bg-green-100 text-green-800' : 'bg-red-100 text-red-800'}`}>
+
+                    <td className="px-4 py-3 text-center">
+                      <span
+                        className={`px-3 py-1 rounded-full text-xs font-semibold ${
+                          u.is_active
+                            ? 'bg-green-100 text-green-700'
+                            : 'bg-red-100 text-red-600'
+                        }`}
+                      >
                         {u.is_active ? 'Activo' : 'Inactivo'}
                       </span>
                     </td>
-                    <td className="px-4 py-2 border">
+
+                    <td className="px-4 py-3">
                       <div className="flex gap-2 justify-center">
+
                         <button
                           onClick={() => toggleActive(u.id, u.is_active)}
-                          className={`px-3 py-1 rounded text-sm ${u.is_active ? 'bg-yellow-100 hover:bg-yellow-200 text-yellow-800' : 'bg-green-100 hover:bg-green-200 text-green-800'}`}
+                          className={`px-3 py-1 rounded-lg text-xs font-medium transition ${
+                            u.is_active
+                              ? 'bg-[#e8d8cc] text-[#3b2f2f] hover:bg-[#d9c2b4]'
+                              : 'bg-[#3b2f2f] text-white hover:bg-black'
+                          }`}
                         >
                           {u.is_active ? 'Desactivar' : 'Activar'}
                         </button>
+
                         <button
                           onClick={() => deleteUser(u.id, u.name)}
-                          className="px-2 py-1 bg-red-100 hover:bg-red-200 text-red-700 rounded"
+                          className="p-2 bg-red-100 hover:bg-red-200 text-red-600 rounded-lg transition"
                           title="Eliminar usuario"
                         >
                           <Trash2 className="w-4 h-4" />
                         </button>
+
                       </div>
                     </td>
                   </tr>
                 ))}
               </tbody>
             </table>
+
             {users.length === 0 && (
-              <p className="text-center text-gray-500 py-4">No hay usuarios registrados</p>
+              <p className="text-center text-gray-500 py-6">
+                No hay usuarios registrados
+              </p>
             )}
           </div>
         )}
