@@ -1,190 +1,186 @@
-import React, { useState, useEffect } from 'react'
-import { Upload, Trash2, X, Pencil, Save } from 'lucide-react'
-import { useUser } from '../context/UserContext'
+import React, { useState, useEffect } from 'react';
+import { Upload, Trash2, X, Pencil, Save } from 'lucide-react';
+import { useUser } from '../context/UserContext';
+import { useAlert } from '../context/AlertContext';
 
 export default function GalleryManagementModal({ onClose }) {
-  const API_BASE = import.meta.env.VITE_API_URL || 'http://localhost:8080/api/v1'
-  const { token } = useUser()
-  const [galleryImages, setGalleryImages] = useState([])
-  const [loading, setLoading] = useState(false)
-  const [uploading, setUploading] = useState(false)
+  const API_BASE = import.meta.env.VITE_API_URL || 'http://localhost:8080/api/v1';
+  const { token } = useUser();
+  const { confirmDelete, successToast, errorAlert } = useAlert();
+
+  const [galleryImages, setGalleryImages] = useState([]);
+  const [loading, setLoading] = useState(false);
+  const [uploading, setUploading] = useState(false);
 
   // Upload form state
-  const [selectedFile, setSelectedFile] = useState(null)
-  const [previewUrl, setPreviewUrl] = useState(null)
+  const [selectedFile, setSelectedFile] = useState(null);
+  const [previewUrl, setPreviewUrl] = useState(null);
   const [uploadForm, setUploadForm] = useState({
     title: '',
     description: '',
-    image_type: 'GENERAL'
-  })
+    image_type: 'GENERAL',
+  });
 
   // Edit state
-  const [editingId, setEditingId] = useState(null)
+  const [editingId, setEditingId] = useState(null);
   const [editForm, setEditForm] = useState({
     title: '',
     description: '',
-    image_type: ''
-  })
-  const [saving, setSaving] = useState(false)
+    image_type: '',
+  });
+  const [saving, setSaving] = useState(false);
 
   useEffect(() => {
-    if (token) {
-      fetchGalleryImages()
-    }
-  }, [token])
+    if (token) fetchGalleryImages();
+  }, [token]);
 
   const fetchGalleryImages = async () => {
-    if (!token) {
-      console.warn('No hay token disponible')
-      return
-    }
-
-    setLoading(true)
+    if (!token) return;
+    setLoading(true);
     try {
       const res = await fetch(`${API_BASE}/gallery`, {
-        headers: { 'Authorization': `Bearer ${token}` }
-      })
+        headers: { Authorization: `Bearer ${token}` },
+      });
 
       if (!res.ok) {
-        const errData = await res.json().catch(() => ({}))
-        throw new Error(errData.message || `Error ${res.status}`)
+        const errData = await res.json().catch(() => ({}));
+        throw new Error(errData.message || `Error ${res.status}`);
       }
 
-      const data = await res.json()
-      setGalleryImages(data.data || [])
+      const data = await res.json();
+      setGalleryImages(data.data || []);
     } catch (err) {
-      console.error('Error al cargar galería:', err)
+      console.error('Error al cargar galería:', err);
+      errorAlert(err.message);
     } finally {
-      setLoading(false)
+      setLoading(false);
     }
-  }
+  };
 
   const handleFileChange = (e) => {
-    const file = e.target.files[0]
-    if (!file) return
+    const file = e.target.files[0];
+    if (!file) return;
 
-    const validTypes = ['image/jpeg', 'image/jpg', 'image/png', 'image/webp', 'image/gif']
+    const validTypes = ['image/jpeg', 'image/jpg', 'image/png', 'image/webp', 'image/gif'];
     if (!validTypes.includes(file.type)) {
-      alert('Solo se permiten imágenes (JPG, PNG, WEBP, GIF)')
-      return
+      errorAlert('Solo se permiten imágenes (JPG, PNG, WEBP, GIF)');
+      return;
     }
 
     if (file.size > 10 * 1024 * 1024) {
-      alert('La imagen es demasiado grande. Máximo 10MB')
-      return
+      errorAlert('La imagen es demasiado grande. Máximo 10MB');
+      return;
     }
 
-    setSelectedFile(file)
-    setPreviewUrl(URL.createObjectURL(file))
-  }
+    setSelectedFile(file);
+    setPreviewUrl(URL.createObjectURL(file));
+  };
 
   const handleUploadSubmit = async (e) => {
-    e.preventDefault()
+    e.preventDefault();
     if (!selectedFile) {
-      alert('Selecciona una imagen primero')
-      return
+      errorAlert('Selecciona una imagen primero');
+      return;
     }
 
-    const formData = new FormData()
-    formData.append('image', selectedFile)
-    formData.append('title', uploadForm.title)
-    formData.append('description', uploadForm.description)
-    formData.append('image_type', uploadForm.image_type)
-    formData.append('is_active', 'true')
+    const formData = new FormData();
+    formData.append('image', selectedFile);
+    formData.append('title', uploadForm.title);
+    formData.append('description', uploadForm.description);
+    formData.append('image_type', uploadForm.image_type);
+    formData.append('is_active', 'true');
 
-    setUploading(true)
+    setUploading(true);
     try {
       const res = await fetch(`${API_BASE}/gallery/upload`, {
         method: 'POST',
-        headers: { 'Authorization': `Bearer ${token}` },
-        body: formData
-      })
+        headers: { Authorization: `Bearer ${token}` },
+        body: formData,
+      });
 
       if (!res.ok) {
-        const error = await res.json()
-        throw new Error(error.error || 'Error al subir imagen')
+        const error = await res.json().catch(() => ({}));
+        throw new Error(error.error || 'Error al subir imagen');
       }
 
-      alert('Imagen subida exitosamente')
-      setSelectedFile(null)
-      setPreviewUrl(null)
-      setUploadForm({ title: '', description: '', image_type: 'GENERAL' })
-      fetchGalleryImages()
+      successToast('Imagen subida exitosamente');
+      setSelectedFile(null);
+      setPreviewUrl(null);
+      setUploadForm({ title: '', description: '', image_type: 'GENERAL' });
+      fetchGalleryImages();
     } catch (err) {
-      console.error(err)
-      alert(err.message)
+      console.error(err);
+      errorAlert(err.message);
     } finally {
-      setUploading(false)
+      setUploading(false);
     }
-  }
+  };
 
   const handleDelete = async (imageId) => {
-    if (!confirm('¿Estás seguro de eliminar esta imagen?')) return
+    const confirmed = await confirmDelete('esta imagen');
+    if (!confirmed) return;
 
     try {
       const res = await fetch(`${API_BASE}/gallery/${imageId}`, {
         method: 'DELETE',
-        headers: { 'Authorization': `Bearer ${token}` }
-      })
+        headers: { Authorization: `Bearer ${token}` },
+      });
 
-      if (!res.ok) throw new Error('Error al eliminar')
+      if (!res.ok) throw new Error('Error al eliminar imagen');
 
-      alert('Imagen eliminada')
-      fetchGalleryImages()
+      successToast('Imagen eliminada correctamente');
+      fetchGalleryImages();
     } catch (err) {
-      console.error(err)
-      alert('No se pudo eliminar la imagen')
+      console.error(err);
+      errorAlert('No se pudo eliminar la imagen');
     }
-  }
+  };
 
-  // Iniciar edición
   const startEdit = (image) => {
-    setEditingId(image.id)
+    setEditingId(image.id);
     setEditForm({
       title: image.title || '',
       description: image.description || '',
-      image_type: image.image_type || 'GENERAL'
-    })
-  }
+      image_type: image.image_type || 'GENERAL',
+    });
+  };
 
-  // Cancelar edición
   const cancelEdit = () => {
-    setEditingId(null)
-    setEditForm({ title: '', description: '', image_type: '' })
-  }
+    setEditingId(null);
+    setEditForm({ title: '', description: '', image_type: '' });
+  };
 
-  // Guardar edición
   const saveEdit = async (imageId) => {
-    setSaving(true)
+    setSaving(true);
     try {
       const res = await fetch(`${API_BASE}/gallery/${imageId}`, {
         method: 'PUT',
         headers: {
           'Content-Type': 'application/json',
-          'Authorization': `Bearer ${token}`
+          Authorization: `Bearer ${token}`,
         },
         body: JSON.stringify({
           title: editForm.title,
           description: editForm.description,
-          image_type: editForm.image_type
-        })
-      })
+          image_type: editForm.image_type,
+        }),
+      });
 
       if (!res.ok) {
-        const errData = await res.json().catch(() => ({}))
-        throw new Error(errData.message || 'Error al actualizar')
+        const errData = await res.json().catch(() => ({}));
+        throw new Error(errData.message || 'Error al actualizar imagen');
       }
 
-      alert('Imagen actualizada')
-      setEditingId(null)
-      fetchGalleryImages()
+      successToast('Imagen actualizada');
+      setEditingId(null);
+      fetchGalleryImages();
     } catch (err) {
-      console.error(err)
-      alert(err.message)
+      console.error(err);
+      errorAlert(err.message);
     } finally {
-      setSaving(false)
+      setSaving(false);
     }
-  }
+  };
 
   return (
     <div className="fixed inset-0 bg-black/50 flex justify-center items-center z-50 p-4">
@@ -228,7 +224,7 @@ export default function GalleryManagementModal({ onClose }) {
                     />
                     <button
                       type="button"
-                      onClick={() => { setSelectedFile(null); setPreviewUrl(null) }}
+                      onClick={() => { setSelectedFile(null); setPreviewUrl(null); }}
                       className="absolute top-2 right-2 bg-red-500 text-white p-1 rounded-full hover:bg-red-600"
                     >
                       <X className="w-4 h-4" />
@@ -236,39 +232,30 @@ export default function GalleryManagementModal({ onClose }) {
                   </div>
                 )}
 
-                <div>
-                  <label className="block text-sm font-medium mb-1">Título</label>
-                  <input
-                    type="text"
-                    value={uploadForm.title}
-                    onChange={(e) => setUploadForm({ ...uploadForm, title: e.target.value })}
-                    className="w-full p-2 border rounded-lg"
-                    required
-                  />
-                </div>
-
-                <div>
-                  <label className="block text-sm font-medium mb-1">Descripción</label>
-                  <textarea
-                    value={uploadForm.description}
-                    onChange={(e) => setUploadForm({ ...uploadForm, description: e.target.value })}
-                    className="w-full p-2 border rounded-lg h-20"
-                  />
-                </div>
-
-                <div>
-                  <label className="block text-sm font-medium mb-1">Tipo de Imagen</label>
-                  <select
-                    value={uploadForm.image_type}
-                    onChange={(e) => setUploadForm({ ...uploadForm, image_type: e.target.value })}
-                    className="w-full p-2 border rounded-lg"
-                  >
-                    <option value="GENERAL">General</option>
-                    <option value="PRODUCT">Producto</option>
-                    <option value="CAROUSEL">Carrusel</option>
-                    <option value="BACKGROUND">Fondo</option>
-                  </select>
-                </div>
+                <input
+                  type="text"
+                  value={uploadForm.title}
+                  onChange={(e) => setUploadForm({ ...uploadForm, title: e.target.value })}
+                  placeholder="Título"
+                  className="w-full p-2 border rounded-lg"
+                  required
+                />
+                <textarea
+                  value={uploadForm.description}
+                  onChange={(e) => setUploadForm({ ...uploadForm, description: e.target.value })}
+                  placeholder="Descripción"
+                  className="w-full p-2 border rounded-lg h-20"
+                />
+                <select
+                  value={uploadForm.image_type}
+                  onChange={(e) => setUploadForm({ ...uploadForm, image_type: e.target.value })}
+                  className="w-full p-2 border rounded-lg"
+                >
+                  <option value="GENERAL">General</option>
+                  <option value="PRODUCT">Producto</option>
+                  <option value="CAROUSEL">Carrusel</option>
+                  <option value="BACKGROUND">Fondo</option>
+                </select>
 
                 <button
                   type="submit"
@@ -294,14 +281,9 @@ export default function GalleryManagementModal({ onClose }) {
                 {galleryImages.map((image) => (
                   <div key={image.id} className="border rounded-lg p-3 hover:shadow-md transition-shadow">
                     {editingId === image.id ? (
-                      // Modo edición
                       <div className="space-y-3">
                         <div className="flex gap-3">
-                          <img
-                            src={image.url}
-                            alt={image.title}
-                            className="w-20 h-20 object-cover rounded-lg"
-                          />
+                          <img src={image.url} alt={image.title} className="w-20 h-20 object-cover rounded-lg" />
                           <div className="flex-1 space-y-2">
                             <input
                               type="text"
@@ -334,47 +316,28 @@ export default function GalleryManagementModal({ onClose }) {
                             disabled={saving}
                             className="px-3 py-2 bg-green-500 text-white rounded hover:bg-green-600 disabled:opacity-50 flex items-center gap-1"
                           >
-                            <Save className="w-4 h-4" />
-                            {saving ? '...' : 'Guardar'}
+                            <Save className="w-4 h-4" /> {saving ? '...' : 'Guardar'}
                           </button>
-                          <button
-                            onClick={cancelEdit}
-                            className="px-3 py-2 bg-gray-200 rounded hover:bg-gray-300"
-                          >
+                          <button onClick={cancelEdit} className="px-3 py-2 bg-gray-200 rounded hover:bg-gray-300">
                             Cancelar
                           </button>
                         </div>
                       </div>
                     ) : (
-                      // Modo visualización
                       <div className="flex gap-3">
-                        <img
-                          src={image.url}
-                          alt={image.title}
-                          className="w-24 h-24 object-cover rounded-lg"
-                        />
+                        <img src={image.url} alt={image.title} className="w-24 h-24 object-cover rounded-lg" />
                         <div className="flex-1 min-w-0">
                           <h4 className="font-semibold text-sm truncate">{image.title}</h4>
                           <p className="text-xs text-gray-500 line-clamp-2">{image.description}</p>
                           <div className="flex gap-2 mt-2">
-                            <span className="text-xs bg-coffee/10 text-coffee px-2 py-1 rounded">
-                              {image.image_type}
-                            </span>
+                            <span className="text-xs bg-coffee/10 text-coffee px-2 py-1 rounded">{image.image_type}</span>
                           </div>
                         </div>
                         <div className="flex flex-col gap-1">
-                          <button
-                            onClick={() => startEdit(image)}
-                            className="p-2 hover:bg-blue-50 rounded-lg text-blue-500"
-                            title="Editar"
-                          >
+                          <button onClick={() => startEdit(image)} className="p-2 hover:bg-blue-50 rounded-lg text-blue-500" title="Editar">
                             <Pencil className="w-4 h-4" />
                           </button>
-                          <button
-                            onClick={() => handleDelete(image.id)}
-                            className="p-2 hover:bg-red-50 rounded-lg text-red-500"
-                            title="Eliminar"
-                          >
+                          <button onClick={() => handleDelete(image.id)} className="p-2 hover:bg-red-50 rounded-lg text-red-500" title="Eliminar">
                             <Trash2 className="w-4 h-4" />
                           </button>
                         </div>
@@ -388,5 +351,5 @@ export default function GalleryManagementModal({ onClose }) {
         </div>
       </div>
     </div>
-  )
+  );
 }
