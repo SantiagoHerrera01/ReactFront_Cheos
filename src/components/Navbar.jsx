@@ -6,6 +6,7 @@ import ModalLoginRegister from './ModalLoginRegister'
 import UserManagementModal from './UserManagementModal'
 import GalleryManagementModal from './GalleryManagementModal'
 import CarouselEditorModal from './CarouselEditorModal'
+import DiscountManagementModal from './DiscountManagementModal'
 
 export default function Navbar({ onCartToggle }) {
   const { cart } = useCart()
@@ -20,11 +21,11 @@ export default function Navbar({ onCartToggle }) {
   const [userModalOpen, setUserModalOpen] = useState(false)
   const [galleryModalOpen, setGalleryModalOpen] = useState(false)
   const [carouselModalOpen, setCarouselModalOpen] = useState(false)
+  const [discountModalOpen, setDiscountModalOpen] = useState(false)
 
   // ✅ Función para formatear nombre con iniciales en mayúscula
   const formatName = (name) => {
     if (!name) return ''
-
     return name
       .toLowerCase()
       .trim()
@@ -44,7 +45,7 @@ export default function Navbar({ onCartToggle }) {
     <>
       <nav className="fixed w-full z-40 bg-white text-black shadow">
         <div className="max-w-6xl mx-auto px-6 py-4 flex justify-between items-center">
-          
+
           <div className="flex items-center gap-4">
             <div className="text-2xl font-bold text-black">
               Cheos <span className="text-coffee">Café</span>
@@ -89,6 +90,7 @@ export default function Navbar({ onCartToggle }) {
 
                 {dropdownOpen && (
                   <div className="absolute right-0 mt-2 bg-white shadow-lg rounded-lg py-2 w-48 flex flex-col">
+
                     <button className="px-4 py-2 text-left hover:bg-gray-100">
                       Perfil
                     </button>
@@ -99,42 +101,40 @@ export default function Navbar({ onCartToggle }) {
                         <p className="px-4 py-1 text-xs text-gray-500 font-semibold">
                           Admin
                         </p>
+
                         <button
-                          onClick={() => {
-                            setUserModalOpen(true)
-                            setDropdownOpen(false)
-                          }}
+                          onClick={() => { setUserModalOpen(true); setDropdownOpen(false) }}
                           className="px-4 py-2 text-left hover:bg-gray-100"
                         >
                           Gestión de usuarios
                         </button>
+
                         <button
-                          onClick={() => {
-                            setGalleryModalOpen(true)
-                            setDropdownOpen(false)
-                          }}
+                          onClick={() => { setGalleryModalOpen(true); setDropdownOpen(false) }}
                           className="px-4 py-2 text-left hover:bg-gray-100"
                         >
                           Gestión de galería
                         </button>
+
                         <button
-                          onClick={() => {
-                            setCarouselModalOpen(true)
-                            setDropdownOpen(false)
-                          }}
+                          onClick={() => { setCarouselModalOpen(true); setDropdownOpen(false) }}
                           className="px-4 py-2 text-left hover:bg-gray-100"
                         >
                           Editar carrusel
+                        </button>
+
+                        <button
+                          onClick={() => { setDiscountModalOpen(true); setDropdownOpen(false) }}
+                          className="px-4 py-2 text-left hover:bg-gray-100"
+                        >
+                          Gestión de códigos
                         </button>
                       </>
                     )}
 
                     <div className="border-t my-1"></div>
                     <button
-                      onClick={() => {
-                        logout()
-                        setDropdownOpen(false)
-                      }}
+                      onClick={() => { logout(); setDropdownOpen(false) }}
                       className="px-4 py-2 text-left hover:bg-gray-100 text-red-600"
                     >
                       Cerrar Sesión
@@ -168,6 +168,14 @@ export default function Navbar({ onCartToggle }) {
         <CarouselEditorModal
           onClose={() => setCarouselModalOpen(false)}
           onSave={handleCarouselSave}
+        />
+      )}
+
+      {/* Modal de gestión de códigos promocionales */}
+      {discountModalOpen && (
+        <DiscountManagementModal
+          open={discountModalOpen}
+          onClose={() => setDiscountModalOpen(false)}
         />
       )}
     </>
