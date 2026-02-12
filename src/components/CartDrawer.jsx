@@ -1,5 +1,6 @@
 import React, { useMemo, useState, useEffect } from "react";
 import { useCart } from "../context/CartContext";
+import { useUser } from "../context/UserContext";
 import { createOrder } from "../routes/orders";
 import { X, Trash2, Minus, Plus } from "lucide-react";
 
@@ -7,6 +8,7 @@ const API_BASE = import.meta.env.VITE_API_URL || "http://localhost:8080/api/v1";
 
 export default function CartDrawer({ open, onClose }) {
   const { cart = [], removeFromCart, updateQuantity, clearCart } = useCart();
+  const { user, token } = useUser();
 
   const [discountCode, setDiscountCode] = useState("");
   const [discountData, setDiscountData] = useState(null);
@@ -139,11 +141,11 @@ export default function CartDrawer({ open, onClose }) {
     revalidate();
   }, [subtotal]);
 
-  // 🧾 Crear pedido
   async function checkout() {
     const payload = {
-      customer_name: "Invitado",
-      customer_email: "guest@example.com",
+      customer_name: user?.name || "Invitado",
+      customer_email: user?.email || "guest@example.com",
+      customer_phone: user?.phone || "",
       items: cart.map((i) => ({
         product_id: i.id,
         product_name: i.name,
@@ -158,7 +160,7 @@ export default function CartDrawer({ open, onClose }) {
     };
 
     try {
-      await createOrder(payload);
+      await createOrder(payload, token || null);
       clearCart();
       setDiscountAmount(0);
       setDiscountData(null);
