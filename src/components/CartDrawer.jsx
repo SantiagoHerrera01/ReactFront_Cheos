@@ -1,154 +1,185 @@
-import React, { useMemo, useState } from 'react'
-import { useCart } from '../context/CartContext'
-import { createOrder } from '../routes/orders'
-import { X, Trash2, Minus, Plus } from 'lucide-react'
+import React, { useMemo, useState, useEffect } from "react";
+import { useCart } from "../context/CartContext";
+import { createOrder } from "../routes/orders";
+import { X, Trash2, Minus, Plus } from "lucide-react";
 
-const API_BASE = import.meta.env.VITE_API_URL || 'http://localhost:8080/api/v1'
+const API_BASE = import.meta.env.VITE_API_URL || "http://localhost:8080/api/v1";
 
 export default function CartDrawer({ open, onClose }) {
-  const { cart = [], removeFromCart, updateQuantity, clearCart } = useCart()
+  const { cart = [], removeFromCart, updateQuantity, clearCart } = useCart();
 
-  const [discountCode, setDiscountCode] = useState('')
-  const [discountData, setDiscountData] = useState(null)
-  const [discountAmount, setDiscountAmount] = useState(0)
-  const [validating, setValidating] = useState(false)
-  const [discountMessage, setDiscountMessage] = useState(null)
+  const [discountCode, setDiscountCode] = useState("");
+  const [discountData, setDiscountData] = useState(null);
+  const [discountAmount, setDiscountAmount] = useState(0);
+  const [validating, setValidating] = useState(false);
+  const [discountMessage, setDiscountMessage] = useState(null);
 
   // 🔥 Formateador COP con decimales
   const formatPrice = (value) => {
-    return new Intl.NumberFormat('es-CO', {
-      style: 'currency',
-      currency: 'COP',
+    return new Intl.NumberFormat("es-CO", {
+      style: "currency",
+      currency: "COP",
       minimumFractionDigits: 2,
-      maximumFractionDigits: 2
-    }).format(value || 0)
-  }
+      maximumFractionDigits: 2,
+    }).format(value || 0);
+  };
 
   // ✅ Subtotal
   const subtotal = useMemo(() => {
     return cart.reduce(
       (s, i) => s + (Number(i.price) || 0) * (i.quantity || 0),
-      0
-    )
-  }, [cart])
+      0,
+    );
+  }, [cart]);
 
-  const total = subtotal - discountAmount
+  // 🔒 Nunca permitir total negativo
+  const total = Math.max(0, subtotal - discountAmount);
 
-  // 🧠 Traductor de mensajes backend → español bonito
+  // 🧠 Traductor mensajes backend
   const translateMessage = (message) => {
-    if (!message) return null
+    if (!message) return null;
+    if (message.includes("minimum requirement"))
+      return "El monto mínimo para aplicar este descuento no se cumple.";
+    if (message.includes("expired"))
+      return "Este código de descuento ya venció.";
+    if (message.includes("not found"))
+      return "El código de descuento no existe.";
+    if (message.includes("inactive"))
+      return "Este código de descuento no está activo.";
+    if (message.includes("maximum uses"))
+      return "Este código ya alcanzó el máximo de usos permitidos.";
+    return "No se pudo aplicar el código de descuento.";
+  };
 
-    if (message.includes('minimum requirement'))
-      return 'El monto mínimo para aplicar este descuento no se cumple.'
+  // 🔎 Validar código manualmente
+  const validateDiscount = async (codeToValidate = discountCode) => {
+    if (!codeToValidate.trim()) return;
 
-    if (message.includes('expired'))
-      return 'Este código de descuento ya venció.'
-
-    if (message.includes('not found'))
-      return 'El código de descuento no existe.'
-
-    if (message.includes('inactive'))
-      return 'Este código de descuento no está activo.'
-
-    if (message.includes('maximum uses'))
-      return 'Este código ya alcanzó el máximo de usos permitidos.'
-
-    return 'No se pudo aplicar el código de descuento.'
-  }
-
-  // 🔎 Validar código
-  const validateDiscount = async () => {
-    if (!discountCode.trim()) return
-
-    setValidating(true)
-    setDiscountMessage(null)
+    setValidating(true);
+    setDiscountMessage(null);
 
     try {
       const res = await fetch(`${API_BASE}/discounts/validate`, {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
-          code: discountCode.trim(),
-          purchase_total: subtotal
-        })
-      })
+          code: codeToValidate.trim(),
+          purchase_total: subtotal,
+        }),
+      });
 
-      const data = await res.json()
+      const data = await res.json();
 
       if (!data.success) {
-        setDiscountMessage('Error validando código.')
-        setDiscountAmount(0)
-        setDiscountData(null)
-        return
+        setDiscountMessage("Error validando código.");
+        setDiscountAmount(0);
+        setDiscountData(null);
+        return;
       }
 
       if (!data.data.valid) {
-        setDiscountMessage(
-          translateMessage(data.data.message)
-        )
-        setDiscountAmount(0)
-        setDiscountData(data.data.discount_code)
-        return
+        setDiscountMessage(translateMessage(data.data.message));
+        setDiscountAmount(0);
+        setDiscountData(null);
+        return;
       }
 
-      setDiscountData(data.data.discount_code)
-      setDiscountAmount(data.data.discount_amount)
-      setDiscountMessage('Código aplicado correctamente ✅')
-
+      setDiscountData(data.data.discount_code);
+      setDiscountAmount(data.data.discount_amount);
+      setDiscountMessage("Código aplicado correctamente ✅");
     } catch (err) {
-      console.error(err)
-      setDiscountMessage('Error al validar descuento.')
-      setDiscountAmount(0)
-      setDiscountData(null)
+      console.error(err);
+      setDiscountMessage("Error al validar descuento.");
+      setDiscountAmount(0);
+      setDiscountData(null);
     } finally {
-      setValidating(false)
+      setValidating(false);
     }
-  }
+  };
+
+  // 🔁 Revalidar automáticamente cuando cambia el subtotal
+  useEffect(() => {
+    if (!discountData?.code) return;
+
+    if (subtotal <= 0) {
+      setDiscountAmount(0);
+      setDiscountData(null);
+      setDiscountMessage(null);
+      return;
+    }
+
+    const revalidate = async () => {
+      try {
+        const res = await fetch(`${API_BASE}/discounts/validate`, {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({
+            code: discountData.code,
+            purchase_total: subtotal,
+          }),
+        });
+
+        const data = await res.json();
+
+        if (!data.success || !data.data.valid) {
+          setDiscountAmount(0);
+          setDiscountData(null);
+          setDiscountMessage(
+            "El descuento fue removido porque ya no cumple las condiciones.",
+          );
+          return;
+        }
+
+        setDiscountAmount(data.data.discount_amount);
+      } catch (err) {
+        console.error(err);
+      }
+    };
+
+    revalidate();
+  }, [subtotal]);
 
   // 🧾 Crear pedido
   async function checkout() {
     const payload = {
-      customer_name: 'Invitado',
-      customer_email: 'guest@example.com',
-      items: cart.map(i => ({
+      customer_name: "Invitado",
+      customer_email: "guest@example.com",
+      items: cart.map((i) => ({
         product_id: i.id,
         product_name: i.name,
         quantity: i.quantity,
-        price: i.price
+        price: i.price,
       })),
       subtotal,
       discount_code: discountData?.code || null,
       discount_amount: discountAmount,
       total,
-      payment_method: 'CONTRA_ENTREGA'
-    }
+      payment_method: "CONTRA_ENTREGA",
+    };
 
     try {
-      await createOrder(payload)
-      clearCart()
-      setDiscountAmount(0)
-      setDiscountData(null)
-      setDiscountCode('')
-      alert('✅ Pedido creado correctamente.')
-      onClose()
+      await createOrder(payload);
+      clearCart();
+      setDiscountAmount(0);
+      setDiscountData(null);
+      setDiscountCode("");
+      alert("✅ Pedido creado correctamente.");
+      onClose();
     } catch (e) {
-      console.error(e)
-      alert('❌ Error al crear el pedido.')
+      console.error(e);
+      alert("❌ Error al crear el pedido.");
     }
   }
 
   return (
     <>
       {open && (
-        <div
-          className="fixed inset-0 bg-black/50 z-40"
-          onClick={onClose}
-        />
+        <div className="fixed inset-0 bg-black/50 z-40" onClick={onClose} />
       )}
 
       <div
         className={`fixed top-0 right-0 h-full w-96 bg-white z-50 shadow-lg transform transition-transform duration-300 ${
-          open ? 'translate-x-0' : 'translate-x-full'
+          open ? "translate-x-0" : "translate-x-full"
         }`}
       >
         {/* Header */}
@@ -166,7 +197,7 @@ export default function CartDrawer({ open, onClose }) {
               🛒 Tu carrito está vacío
             </p>
           ) : (
-            cart.map(item => (
+            cart.map((item) => (
               <div
                 key={item.id}
                 className="flex justify-between items-center bg-gray-50 rounded-lg p-3 shadow-sm"
@@ -189,9 +220,7 @@ export default function CartDrawer({ open, onClose }) {
                   </button>
 
                   <button
-                    onClick={() =>
-                      updateQuantity(item.id, item.quantity + 1)
-                    }
+                    onClick={() => updateQuantity(item.id, item.quantity + 1)}
                     className="bg-gray-200 p-1 rounded"
                   >
                     <Plus size={14} />
@@ -211,7 +240,6 @@ export default function CartDrawer({ open, onClose }) {
 
         {/* Footer */}
         <div className="p-4 border-t bg-gray-50 space-y-3">
-
           {/* Código descuento */}
           <div className="flex gap-2">
             <input
@@ -222,18 +250,20 @@ export default function CartDrawer({ open, onClose }) {
               className="flex-1 border px-2 py-1 rounded"
             />
             <button
-              onClick={validateDiscount}
+              onClick={() => validateDiscount()}
               disabled={validating}
               className="bg-coffee text-white px-3 rounded"
             >
-              {validating ? '...' : 'Aplicar'}
+              {validating ? "..." : "Aplicar"}
             </button>
           </div>
 
           {discountMessage && (
-            <p className={`text-sm ${
-              discountAmount > 0 ? 'text-green-600' : 'text-red-500'
-            }`}>
+            <p
+              className={`text-sm ${
+                discountAmount > 0 ? "text-green-600" : "text-red-500"
+              }`}
+            >
               {discountMessage}
             </p>
           )}
@@ -245,14 +275,10 @@ export default function CartDrawer({ open, onClose }) {
           </div>
 
           {discountAmount > 0 && (
-            <>
-              <div className="flex justify-between text-green-600">
-                <span>
-                  Descuento ({discountData?.value}%)
-                </span>
-                <span>- {formatPrice(discountAmount)}</span>
-              </div>
-            </>
+            <div className="flex justify-between text-green-600">
+              <span>Descuento ({discountData?.value || 0}%)</span>
+              <span>- {formatPrice(discountAmount)}</span>
+            </div>
           )}
 
           <div className="flex justify-between font-bold text-lg">
@@ -265,8 +291,8 @@ export default function CartDrawer({ open, onClose }) {
             disabled={!cart.length}
             className={`w-full py-2 rounded text-white ${
               cart.length
-                ? 'bg-coffee hover:bg-coffee/80'
-                : 'bg-gray-400 cursor-not-allowed'
+                ? "bg-coffee hover:bg-coffee/80"
+                : "bg-gray-400 cursor-not-allowed"
             }`}
           >
             Finalizar compra
@@ -274,5 +300,5 @@ export default function CartDrawer({ open, onClose }) {
         </div>
       </div>
     </>
-  )
+  );
 }
