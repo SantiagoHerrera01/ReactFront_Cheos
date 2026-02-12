@@ -7,12 +7,14 @@ import UserManagementModal from './UserManagementModal'
 import GalleryManagementModal from './GalleryManagementModal'
 import CarouselEditorModal from './CarouselEditorModal'
 import DiscountManagementModal from './DiscountManagementModal'
+import { TypeAnimation } from 'react-type-animation'
 
 export default function Navbar({ onCartToggle }) {
   const { cart } = useCart()
   const { user, logout, loading } = useUser()
 
   const count = cart.reduce((s, i) => s + i.quantity, 0)
+
   const scrollTo = id =>
     document.getElementById(id)?.scrollIntoView({ behavior: 'smooth' })
 
@@ -23,7 +25,9 @@ export default function Navbar({ onCartToggle }) {
   const [carouselModalOpen, setCarouselModalOpen] = useState(false)
   const [discountModalOpen, setDiscountModalOpen] = useState(false)
 
-  // ✅ Función para formatear nombre con iniciales en mayúscula
+  // 👇 Controla cuándo empieza "Café"
+  const [showCafe, setShowCafe] = useState(false)
+
   const formatName = (name) => {
     if (!name) return ''
     return name
@@ -46,12 +50,43 @@ export default function Navbar({ onCartToggle }) {
       <nav className="fixed w-full z-40 bg-white text-black shadow">
         <div className="max-w-6xl mx-auto px-6 py-4 flex justify-between items-center">
 
-          <div className="flex items-center gap-4">
-            <div className="text-2xl font-bold text-black">
-              Cheos <span className="text-coffee">Café</span>
-            </div>
+          {/* Logo + Título animado */}
+          <div className="flex items-center gap-2">
+            <img
+              src="/src/public/LogoCheos.jpeg"
+              alt="Logo Cheo's Café"
+              className="w-10 h-10 object-contain"
+            />
+
+            <h1 className="text-2xl font-bold flex gap-1">
+
+              {/* Cheos */}
+              <TypeAnimation
+                sequence={[
+                  "Cheo's",
+                  () => setShowCafe(true) // 👈 cuando termine, activa Café
+                ]}
+                speed={30}     // más lento = más elegante
+                cursor={false}
+                wrapper="span"
+                className="text-black"
+              />
+
+              {/* Café */}
+              {showCafe && (
+                <TypeAnimation
+                  sequence={["Café"]}
+                  speed={30}
+                  cursor={false}
+                  wrapper="span"
+                  className="text-[#A67C52]"
+                />
+              )}
+
+            </h1>
           </div>
 
+          {/* Menú */}
           <div className="hidden md:flex gap-6 items-center">
             <button onClick={() => scrollTo('hero')} className="hover:text-coffee">Inicio</button>
             <button onClick={() => scrollTo('products')} className="hover:text-coffee">Productos</button>
@@ -59,6 +94,7 @@ export default function Navbar({ onCartToggle }) {
             <button onClick={() => scrollTo('about')} className="hover:text-coffee">Nosotros</button>
           </div>
 
+          {/* Carrito + Usuario */}
           <div className="flex items-center gap-3">
             <button
               onClick={onCartToggle}
@@ -147,31 +183,16 @@ export default function Navbar({ onCartToggle }) {
         </div>
       </nav>
 
-      {/* Modal de login/registro */}
-      <ModalLoginRegister
-        open={modalOpen}
-        onClose={() => setModalOpen(false)}
-      />
-
-      {/* Modal de gestión de usuarios */}
-      {userModalOpen && (
-        <UserManagementModal onClose={() => setUserModalOpen(false)} />
-      )}
-
-      {/* Modal de gestión de galería */}
-      {galleryModalOpen && (
-        <GalleryManagementModal onClose={() => setGalleryModalOpen(false)} />
-      )}
-
-      {/* Modal de edición de carrusel */}
+      {/* Modales */}
+      <ModalLoginRegister open={modalOpen} onClose={() => setModalOpen(false)} />
+      {userModalOpen && <UserManagementModal onClose={() => setUserModalOpen(false)} />}
+      {galleryModalOpen && <GalleryManagementModal onClose={() => setGalleryModalOpen(false)} />}
       {carouselModalOpen && (
         <CarouselEditorModal
           onClose={() => setCarouselModalOpen(false)}
           onSave={handleCarouselSave}
         />
       )}
-
-      {/* Modal de gestión de códigos promocionales */}
       {discountModalOpen && (
         <DiscountManagementModal
           open={discountModalOpen}
