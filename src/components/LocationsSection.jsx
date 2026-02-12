@@ -1,94 +1,113 @@
-import React, { useEffect, useRef, useState } from "react";
-import { Pencil, Trash2, Plus, ChevronLeft, ChevronRight } from "lucide-react";
-import { useUser } from "../context/UserContext";
-import LocationModal from "./LocationModal";
-import { getLocations, deleteLocation } from "../routes/locations";
-// import Swal from "sweetalert2";
-import { useAlert } from "../context/AlertContext";
-
-
+import React, { useEffect, useRef, useState } from "react"
+import { ChevronLeft, ChevronRight } from "lucide-react"
+import { useUser } from "../context/UserContext"
+import { useAlert } from "../context/AlertContext"
+import { getLocations, deleteLocation } from "../routes/locations"
+import LocationModal from "./LocationModal"
+import LocationCard from "./LocationCard"
 
 export default function LocationsSection() {
-  const API_BASE = import.meta.env.VITE_API_URL || "http://localhost:8080/api/v1";
-  const [locs, setLocs] = useState([]);
-  const [modalOpen, setModalOpen] = useState(false);
-  const [editing, setEditing] = useState(null);
-  const carouselRef = useRef(null);
-  const { user, token } = useUser();
-  const isAdmin = user?.role === "ADMIN";
-  const { confirmDelete, successToast, errorAlert } = useAlert();
+  const API_BASE =
+    import.meta.env.VITE_API_URL || "http://localhost:8080/api/v1"
 
-const loadLocations = async () => {
-  try {
-    const json = await getLocations(API_BASE, token);
-    const locations = json?.data?.locations ?? [];
-    setLocs(locations);
-  } catch (err) {
-    console.error("Error al cargar ubicaciones:", err);
+  const [locs, setLocs] = useState([])
+  const [modalOpen, setModalOpen] = useState(false)
+  const [editing, setEditing] = useState(null)
+  const [canScroll, setCanScroll] = useState(false)
+
+  const carouselRef = useRef(null)
+
+  const { user, token } = useUser()
+  const { confirmDelete, successToast, errorAlert } = useAlert()
+
+  const isAdmin = user?.role === "ADMIN"
+
+  const loadLocations = async () => {
+    try {
+      const json = await getLocations(API_BASE, token)
+
+      let arr = []
+      if (Array.isArray(json)) arr = json
+      else if (Array.isArray(json.locations)) arr = json.locations
+      else if (Array.isArray(json.data)) arr = json.data
+      else if (Array.isArray(json.data?.locations))
+        arr = json.data.locations
+
+      setLocs(arr)
+    } catch (err) {
+      console.error("Error cargando ubicaciones:", err)
+    }
   }
-};
-
 
   useEffect(() => {
-    loadLocations();
-  }, []);
+    loadLocations()
+  }, [])
 
-  const handleAdd = () => {
-    setEditing(null);
-    setModalOpen(true);
-  };
+  // 🔎 Detectar overflow
+  useEffect(() => {
+    const container = carouselRef.current
+    if (!container) return
 
-  const handleEdit = (location) => {
-    setEditing(location);
-    setModalOpen(true);
-  };
-
-const handleDelete = async (id) => {
-  const ok = await confirmDelete("ubicación"); // 🔥 Reutilizable para todo
-
-  if (!ok) return;
-
-  try {
-    const res = await deleteLocation(API_BASE, id, token);
-
-    if (!res.ok) {
-      errorAlert("Error eliminando ubicación");
-      return;
+    const checkOverflow = () => {
+      setCanScroll(container.scrollWidth > container.clientWidth)
     }
 
-    successToast("Ubicación eliminada");
-    loadLocations();
-  } catch (err) {
-    console.error(err);
-    errorAlert("Error de red al eliminar la ubicación");
-  }
-};
+    checkOverflow()
+    window.addEventListener("resize", checkOverflow)
 
+    return () => window.removeEventListener("resize", checkOverflow)
+  }, [locs, isAdmin])
 
   const scroll = (dir) => {
-    const container = carouselRef.current;
-    if (!container) return;
+    if (!canScroll) return
+    const container = carouselRef.current
+    if (!container) return
 
-    const amount = 320; // ancho del card + gap
+    const amount = 280
+
     container.scrollTo({
-      left: dir === "left" ? container.scrollLeft - amount : container.scrollLeft + amount,
+      left:
+        dir === "left"
+          ? container.scrollLeft - amount
+          : container.scrollLeft + amount,
       behavior: "smooth",
-    });
-  };
+    })
+  }
+
+  const handleDelete = async (id) => {
+    const ok = await confirmDelete("ubicación")
+    if (!ok) return
+
+    try {
+      const res = await deleteLocation(API_BASE, id, token)
+      if (!res.ok) {
+        errorAlert("Error eliminando ubicación")
+        return
+      }
+
+      successToast("Ubicación eliminada")
+      loadLocations()
+    } catch {
+      errorAlert("Error de red")
+    }
+  }
 
   return (
-    <section id="locations" className="py-12 bg-gray-50 text-black">
-      <div className="max-w-6xl mx-auto px-6">
-        <div className="flex justify-between items-center mb-8">
-          <h2 className="text-3xl font-bold text-coffee">Nuestras Tiendas</h2>
-        </div>
+    <section id="locations" className="py-12 bg-white text-black">
+      <div className="max-w-6xl mx-auto px-4">
+        <h2 className="text-3xl font-bold text-center text-coffee mb-8">
+          Nuestras Tiendas
+        </h2>
 
-        {/* 📱 MOBILE — Grid vertical */}
+        {/* 📱 MOBILE */}
         <div className="grid grid-cols-1 sm:grid-cols-2 gap-6 md:hidden">
           {isAdmin && (
             <div
-              onClick={handleAdd}
-              className="w-full h-[280px] flex flex-col items-center justify-center 
+              onClick={() => {
+                setEditing(null)
+                setModalOpen(true)
+              }}
+              className="w-full h-[240px] flex flex-col items-center justify-center 
                          bg-[#f9f6f2] border-2 border-dashed border-coffee/50 
                          rounded-2xl cursor-pointer hover:bg-[#f1ece7]"
             >
@@ -98,71 +117,31 @@ const handleDelete = async (id) => {
           )}
 
           {locs.map((l) => (
-            <div
+            <LocationCard
               key={l.id}
-              className="bg-white rounded-xl shadow-lg overflow-hidden border border-gray-200 relative"
-            >
-              {isAdmin && (
-                <div className="absolute top-3 right-3 flex gap-2 z-20">
-                  <button
-                    onClick={() => handleEdit(l)}
-                    className="bg-white/90 hover:bg-coffee hover:text-white p-2 rounded-lg shadow transition"
-                  >
-                    <Pencil size={18} />
-                  </button>
-                  <button
-                    onClick={() => handleDelete(l.id)}
-                    className="bg-white/90 hover:bg-red-500 hover:text-white p-2 rounded-lg shadow transition"
-                  >
-                    <Trash2 size={18} />
-                  </button>
-                </div>
-              )}
-
-              <div className="p-5">
-                <h3 className="text-xl font-bold text-coffee-dark">{l.name}</h3>
-                <p className="text-gray-700">{l.address}</p>
-                <p className="text-gray-700">
-                  {l.city}, {l.department}
-                </p>
-                <p className="text-gray-600 mt-1">📞 {l.phone}</p>
-                {l.is_active ? (
-                  <span className="inline-block mt-2 px-3 py-1 bg-green-100 text-green-700 text-xs rounded-full">
-                    Abierto
-                  </span>
-                ) : (
-                  <span className="inline-block mt-2 px-3 py-1 bg-red-100 text-red-700 text-xs rounded-full">
-                    Cerrado temporalmente
-                  </span>
-                )}
-              </div>
-
-              <div className="h-56 w-full">
-                {l.map_iframe ? (
-                  <div
-                    className="w-full h-full"
-                    dangerouslySetInnerHTML={{ __html: l.map_iframe }}
-                  />
-                ) : (
-                  <div className="h-full flex items-center justify-center text-gray-500">
-                    Sin mapa disponible
-                  </div>
-                )}
-              </div>
-            </div>
+              location={l}
+              isAdmin={isAdmin}
+              onEdit={() => {
+                setEditing(l)
+                setModalOpen(true)
+              }}
+              onDelete={() => handleDelete(l.id)}
+            />
           ))}
         </div>
 
-        {/* 🖥️ DESKTOP — Carrusel */}
+        {/* 🖥️ DESKTOP */}
         <div className="hidden md:flex items-center relative">
-          <button
-            onClick={() => scroll("left")}
-            className="absolute left-[-50px] top-1/2 -translate-y-1/2 
-                      p-3 bg-white/90 hover:bg-coffee hover:text-white 
-                      rounded-full shadow-lg transition"
-          >
-            <ChevronLeft size={26} />
-          </button>
+          {canScroll && (
+            <button
+              onClick={() => scroll("left")}
+              className="absolute left-[-50px] top-1/2 -translate-y-1/2 
+                         p-3 bg-white/90 hover:bg-coffee hover:text-white 
+                         rounded-full shadow-lg transition"
+            >
+              <ChevronLeft size={26} />
+            </button>
+          )}
 
           <div
             ref={carouselRef}
@@ -170,8 +149,12 @@ const handleDelete = async (id) => {
           >
             {isAdmin && (
               <div
-                onClick={handleAdd}
-                className="min-w-[300px] h-[400px] flex flex-col items-center justify-center 
+                onClick={() => {
+                  setEditing(null)
+                  setModalOpen(true)
+                }}
+                className="w-[260px] h-[400px] flex-shrink-0 
+                           flex flex-col items-center justify-center 
                            bg-[#f9f6f2] border-2 border-dashed border-coffee/50 
                            rounded-2xl cursor-pointer hover:bg-[#f1ece7]"
               >
@@ -181,84 +164,43 @@ const handleDelete = async (id) => {
             )}
 
             {locs.map((l) => (
-              <div
+              <LocationCard
                 key={l.id}
-                className="min-w-[300px] bg-white rounded-xl shadow-lg overflow-hidden border border-gray-200 relative"
-              >
-                {isAdmin && (
-                  <div className="absolute top-3 right-3 flex gap-2 z-20">
-                    <button
-                      onClick={() => handleEdit(l)}
-                      className="bg-white/90 hover:bg-coffee hover:text-white p-2 rounded-lg shadow transition"
-                    >
-                      <Pencil size={18} />
-                    </button>
-                    <button
-                      onClick={() => handleDelete(l.id)}
-                      className="bg-white/90 hover:bg-red-500 hover:text-white p-2 rounded-lg shadow transition"
-                    >
-                      <Trash2 size={18} />
-                    </button>
-                  </div>
-                )}
-
-                <div className="p-5">
-                  <h3 className="text-xl font-bold text-coffee-dark">{l.name}</h3>
-                  <p className="text-gray-700">{l.address}</p>
-                  <p className="text-gray-700">
-                    {l.city}, {l.department}
-                  </p>
-                  <p className="text-gray-600 mt-1">📞 {l.phone}</p>
-                  {l.is_active ? (
-                    <span className="inline-block mt-2 px-3 py-1 bg-green-100 text-green-700 text-xs rounded-full">
-                      Abierto
-                    </span>
-                  ) : (
-                    <span className="inline-block mt-2 px-3 py-1 bg-red-100 text-red-700 text-xs rounded-full">
-                      Cerrado temporalmente
-                    </span>
-                  )}
-                </div>
-
-                <div className="h-56 w-full">
-                  {l.map_iframe ? (
-                    <div
-                      className="w-full h-full"
-                      dangerouslySetInnerHTML={{ __html: l.map_iframe }}
-                    />
-                  ) : (
-                    <div className="h-full flex items-center justify-center text-gray-500">
-                      Sin mapa disponible
-                    </div>
-                  )}
-                </div>
-              </div>
+                location={l}
+                isAdmin={isAdmin}
+                desktop
+                onEdit={() => {
+                  setEditing(l)
+                  setModalOpen(true)
+                }}
+                onDelete={() => handleDelete(l.id)}
+              />
             ))}
           </div>
 
-          <button
-            onClick={() => scroll("right")}
-            className="absolute right-[-50px] top-1/2 -translate-y-1/2 
-                      p-3 bg-white/90 hover:bg-coffee hover:text-white 
-                      rounded-full shadow-lg transition"
-          >
-            <ChevronRight size={26} />
-          </button>
+          {canScroll && (
+            <button
+              onClick={() => scroll("right")}
+              className="absolute right-[-50px] top-1/2 -translate-y-1/2 
+                         p-3 bg-white/90 hover:bg-coffee hover:text-white 
+                         rounded-full shadow-lg transition"
+            >
+              <ChevronRight size={26} />
+            </button>
+          )}
         </div>
       </div>
 
-      {modalOpen && (
-        <LocationModal
-          open={modalOpen}
-          onClose={() => setModalOpen(false)}
-          location={editing}
-          onSaved={() => {
-            setModalOpen(false);
-            setEditing(null);
-            loadLocations();
-          }}
-        />
-      )}
+      <LocationModal
+        open={modalOpen}
+        onClose={() => setModalOpen(false)}
+        location={editing}
+        onSaved={() => {
+          setModalOpen(false)
+          setEditing(null)
+          loadLocations()
+        }}
+      />
     </section>
-  );
+  )
 }
