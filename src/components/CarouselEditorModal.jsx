@@ -1,12 +1,15 @@
 import React, { useState, useEffect } from 'react'
 import { X, Save, Image } from 'lucide-react'
 import { useUser } from '../context/UserContext'
+import { useAlert } from '../context/AlertContext'
 
 const API_BASE = import.meta.env.VITE_API_URL || 'http://localhost:8080/api/v1'
 const MAX_CAROUSEL_IMAGES = 6
 
 export default function CarouselEditorModal({ onClose, onSave }) {
   const { token } = useUser()
+  const { successToast, errorAlert } = useAlert()
+
   const [galleryImages, setGalleryImages] = useState([])
   const [selectedImages, setSelectedImages] = useState([])
   const [loading, setLoading] = useState(true)
@@ -20,7 +23,7 @@ export default function CarouselEditorModal({ onClose, onSave }) {
   const fetchGalleryImages = async () => {
     try {
       const res = await fetch(`${API_BASE}/gallery/active`, {
-        headers: { 'Authorization': `Bearer ${token}` }
+        headers: { Authorization: `Bearer ${token}` }
       })
 
       if (!res.ok) throw new Error('Error al cargar imágenes')
@@ -57,7 +60,7 @@ export default function CarouselEditorModal({ onClose, onSave }) {
         return prev.filter(url => url !== imageUrl)
       } else {
         if (prev.length >= MAX_CAROUSEL_IMAGES) {
-          alert(`Máximo ${MAX_CAROUSEL_IMAGES} imágenes en el carrusel`)
+          errorAlert(`Máximo ${MAX_CAROUSEL_IMAGES} imágenes en el carrusel`)
           return prev
         }
         return [...prev, imageUrl]
@@ -72,7 +75,7 @@ export default function CarouselEditorModal({ onClose, onSave }) {
         method: 'PUT',
         headers: {
           'Content-Type': 'application/json',
-          'Authorization': `Bearer ${token}`
+          Authorization: `Bearer ${token}`
         },
         body: JSON.stringify({ images: selectedImages })
       })
@@ -82,15 +85,15 @@ export default function CarouselEditorModal({ onClose, onSave }) {
         throw new Error(errData.message || 'Error al guardar')
       }
 
-      // Disparar evento para actualizar el carrusel en tiempo real
+      // 🔄 Actualizar carrusel en tiempo real
       window.dispatchEvent(new Event('carouselUpdated'))
 
-      alert('Carrusel actualizado correctamente')
+      successToast('Carrusel actualizado correctamente')
       onSave?.(selectedImages)
       onClose()
     } catch (err) {
       console.error(err)
-      alert('Error al guardar: ' + err.message)
+      errorAlert(err.message)
     } finally {
       setSaving(false)
     }
@@ -128,6 +131,7 @@ export default function CarouselEditorModal({ onClose, onSave }) {
             <h3 className="font-semibold mb-3">
               Imágenes en el carrusel ({selectedImages.length}/{MAX_CAROUSEL_IMAGES})
             </h3>
+
             {selectedImages.length === 0 ? (
               <p className="text-gray-500 text-sm py-4 text-center border-2 border-dashed rounded-lg">
                 No hay imágenes seleccionadas. Elige de la galería abajo.
@@ -174,7 +178,7 @@ export default function CarouselEditorModal({ onClose, onSave }) {
             )}
           </div>
 
-          {/* Galería disponible */}
+          {/* Galería */}
           <div>
             <h3 className="font-semibold mb-3">Galería disponible (General y Carrusel)</h3>
 
@@ -182,13 +186,13 @@ export default function CarouselEditorModal({ onClose, onSave }) {
 
             {!loading && galleryImages.length === 0 && (
               <p className="text-gray-500 text-center py-4">
-                No hay imágenes disponibles. Sube imágenes de tipo "General" o "Carrusel" en la gestión de galería.
+                No hay imágenes disponibles.
               </p>
             )}
 
             {!loading && galleryImages.length > 0 && (
               <div className="grid grid-cols-4 md:grid-cols-6 gap-3">
-                {galleryImages.map((image) => {
+                {galleryImages.map(image => {
                   const isSelected = selectedImages.includes(image.url)
                   return (
                     <div
@@ -210,10 +214,6 @@ export default function CarouselEditorModal({ onClose, onSave }) {
                           <span className="text-white text-3xl">✓</span>
                         </div>
                       )}
-                      <div className="absolute bottom-0 left-0 right-0 bg-black/60 text-white text-[10px] px-1 py-0.5">
-                        <div className="truncate">{image.title}</div>
-                        <div className="text-[8px] opacity-75">{image.image_type}</div>
-                      </div>
                     </div>
                   )
                 })}

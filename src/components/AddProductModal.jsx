@@ -1,9 +1,11 @@
 import React, { useState } from "react";
+import { X } from "lucide-react";
 import GalleryImageSelector from "./GalleryImageSelector";
 import { useAlert } from "../context/AlertContext";
 
 export default function AddProductModal({ open, onClose, onAdded, token }) {
-  const API_BASE = import.meta.env.VITE_API_URL || "http://localhost:8080/api/v1";
+  const API_BASE =
+    import.meta.env.VITE_API_URL || "http://localhost:8080/api/v1";
 
   const { createdToast, errorAlert } = useAlert();
 
@@ -18,6 +20,7 @@ export default function AddProductModal({ open, onClose, onAdded, token }) {
   });
 
   const [selectedImages, setSelectedImages] = useState([]);
+  const [showErrors, setShowErrors] = useState(false);
   const [loading, setLoading] = useState(false);
 
   if (!open) return null;
@@ -33,9 +36,17 @@ export default function AddProductModal({ open, onClose, onAdded, token }) {
   const handleSubmit = async (e) => {
     e.preventDefault();
 
-    // 🚫 Validación básica
-    if (!form.name || !form.price || !form.category) {
-      errorAlert("Nombre, precio y categoría son obligatorios");
+    // ❌ SIN ALERTA – SOLO ERRORES VISUALES
+    if (
+      !form.name ||
+      !form.description ||
+      !form.price ||
+      !form.stock ||
+      !form.category ||
+      !form.weight ||
+      selectedImages.length === 0
+    ) {
+      setShowErrors(true);
       return;
     }
 
@@ -59,12 +70,22 @@ export default function AddProductModal({ open, onClose, onAdded, token }) {
         body: JSON.stringify(payload),
       });
 
-      if (!res.ok) {
-        throw new Error("Error al crear producto");
-      }
+      if (!res.ok) throw new Error("Error al crear producto");
 
-      // ✅ ALERTA UNIFICADA DE CREACIÓN
       createdToast("Producto");
+
+      // 🔄 RESET FORMULARIO
+      setForm({
+        name: "",
+        description: "",
+        price: "",
+        stock: "",
+        category: "",
+        weight: "",
+        is_featured: false,
+      });
+      setSelectedImages([]);
+      setShowErrors(false);
 
       onAdded?.();
       onClose();
@@ -76,9 +97,20 @@ export default function AddProductModal({ open, onClose, onAdded, token }) {
     }
   };
 
+  const errorBorder = (condition) =>
+    condition ? "border-red-500" : "";
+
   return (
     <div className="fixed inset-0 bg-black/50 flex justify-center items-center z-50">
       <div className="bg-white rounded-2xl shadow-xl w-full max-w-lg p-6 relative animate-fadeIn">
+        {/* ❌ CERRAR */}
+        <button
+          onClick={onClose}
+          className="absolute top-4 right-4 text-gray-500 hover:text-gray-700"
+        >
+          <X size={20} />
+        </button>
+
         <h2 className="text-2xl font-semibold text-coffee mb-4">
           Agregar nuevo producto
         </h2>
@@ -87,27 +119,40 @@ export default function AddProductModal({ open, onClose, onAdded, token }) {
           onSubmit={handleSubmit}
           className="space-y-4 max-h-[70vh] overflow-y-auto pr-2 custom-scrollbar"
         >
+          {/* NOMBRE */}
           <div>
             <label className="block text-sm font-medium">Nombre</label>
             <input
               name="name"
               value={form.name}
               onChange={handleChange}
-              className="w-full p-2 border rounded-lg"
+              className={`w-full p-2 border rounded-lg ${errorBorder(
+                showErrors && !form.name
+              )}`}
             />
+            {showErrors && !form.name && (
+              <p className="text-red-500 text-xs mt-1">Campo obligatorio</p>
+            )}
           </div>
 
+          {/* DESCRIPCIÓN */}
           <div>
             <label className="block text-sm font-medium">Descripción</label>
             <textarea
               name="description"
               value={form.description}
               onChange={handleChange}
-              className="w-full p-2 border rounded-lg h-20"
+              className={`w-full p-2 border rounded-lg h-20 ${errorBorder(
+                showErrors && !form.description
+              )}`}
             />
+            {showErrors && !form.description && (
+              <p className="text-red-500 text-xs mt-1">Campo obligatorio</p>
+            )}
           </div>
 
           <div className="grid grid-cols-2 gap-4">
+            {/* PRECIO */}
             <div>
               <label className="block text-sm font-medium">Precio</label>
               <input
@@ -115,9 +160,16 @@ export default function AddProductModal({ open, onClose, onAdded, token }) {
                 name="price"
                 value={form.price}
                 onChange={handleChange}
-                className="w-full p-2 border rounded-lg"
+                className={`w-full p-2 border rounded-lg ${errorBorder(
+                  showErrors && !form.price
+                )}`}
               />
+              {showErrors && !form.price && (
+                <p className="text-red-500 text-xs mt-1">Campo obligatorio</p>
+              )}
             </div>
+
+            {/* STOCK */}
             <div>
               <label className="block text-sm font-medium">Stock</label>
               <input
@@ -125,11 +177,17 @@ export default function AddProductModal({ open, onClose, onAdded, token }) {
                 name="stock"
                 value={form.stock}
                 onChange={handleChange}
-                className="w-full p-2 border rounded-lg"
+                className={`w-full p-2 border rounded-lg ${errorBorder(
+                  showErrors && !form.stock
+                )}`}
               />
+              {showErrors && !form.stock && (
+                <p className="text-red-500 text-xs mt-1">Campo obligatorio</p>
+              )}
             </div>
           </div>
 
+          {/* CATEGORÍA + PESO (MISMO RENGLÓN) */}
           <div className="grid grid-cols-2 gap-4">
             <div>
               <label className="block text-sm font-medium">Categoría</label>
@@ -137,9 +195,15 @@ export default function AddProductModal({ open, onClose, onAdded, token }) {
                 name="category"
                 value={form.category}
                 onChange={handleChange}
-                className="w-full p-2 border rounded-lg"
+                className={`w-full p-2 border rounded-lg ${errorBorder(
+                  showErrors && !form.category
+                )}`}
               />
+              {showErrors && !form.category && (
+                <p className="text-red-500 text-xs mt-1">Campo obligatorio</p>
+              )}
             </div>
+
             <div>
               <label className="block text-sm font-medium">Peso (g)</label>
               <input
@@ -147,17 +211,30 @@ export default function AddProductModal({ open, onClose, onAdded, token }) {
                 name="weight"
                 value={form.weight}
                 onChange={handleChange}
-                className="w-full p-2 border rounded-lg"
+                className={`w-full p-2 border rounded-lg ${errorBorder(
+                  showErrors && !form.weight
+                )}`}
               />
+              {showErrors && !form.weight && (
+                <p className="text-red-500 text-xs mt-1">Campo obligatorio</p>
+              )}
             </div>
           </div>
 
-          <GalleryImageSelector
-            selectedImages={selectedImages}
-            onImagesChange={setSelectedImages}
-            token={token}
-            singleSelect={true}
-          />
+          {/* IMÁGENES */}
+          <div>
+            <GalleryImageSelector
+              selectedImages={selectedImages}
+              onImagesChange={setSelectedImages}
+              token={token}
+              singleSelect={true}
+            />
+            {showErrors && selectedImages.length === 0 && (
+              <p className="text-red-500 text-xs mt-1">
+                Debes seleccionar una imagen
+              </p>
+            )}
+          </div>
 
           <label className="flex items-center gap-2 text-sm">
             <input
