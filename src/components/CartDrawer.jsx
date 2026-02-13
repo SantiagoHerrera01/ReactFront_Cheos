@@ -16,7 +16,6 @@ export default function CartDrawer({ open, onClose }) {
   const [validating, setValidating] = useState(false);
   const [discountMessage, setDiscountMessage] = useState(null);
 
-  // 🔥 Formateador COP con decimales
   const formatPrice = (value) => {
     return new Intl.NumberFormat("es-CO", {
       style: "currency",
@@ -26,18 +25,15 @@ export default function CartDrawer({ open, onClose }) {
     }).format(value || 0);
   };
 
-  // ✅ Subtotal
   const subtotal = useMemo(() => {
     return cart.reduce(
       (s, i) => s + (Number(i.price) || 0) * (i.quantity || 0),
-      0,
+      0
     );
   }, [cart]);
 
-  // 🔒 Nunca permitir total negativo
   const total = Math.max(0, subtotal - discountAmount);
 
-  // 🧠 Traductor mensajes backend
   const translateMessage = (message) => {
     if (!message) return null;
     if (message.includes("minimum requirement"))
@@ -53,9 +49,8 @@ export default function CartDrawer({ open, onClose }) {
     return "No se pudo aplicar el código de descuento.";
   };
 
-  // 🔎 Validar código manualmente
   const validateDiscount = async (codeToValidate = discountCode) => {
-    if (!codeToValidate.trim()) return;
+    if (!codeToValidate.trim() || cart.length === 0) return;
 
     setValidating(true);
     setDiscountMessage(null);
@@ -72,15 +67,8 @@ export default function CartDrawer({ open, onClose }) {
 
       const data = await res.json();
 
-      if (!data.success) {
-        setDiscountMessage("Error validando código.");
-        setDiscountAmount(0);
-        setDiscountData(null);
-        return;
-      }
-
-      if (!data.data.valid) {
-        setDiscountMessage(translateMessage(data.data.message));
+      if (!data.success || !data.data.valid) {
+        setDiscountMessage(translateMessage(data.data?.message));
         setDiscountAmount(0);
         setDiscountData(null);
         return;
@@ -99,7 +87,6 @@ export default function CartDrawer({ open, onClose }) {
     }
   };
 
-  // 🔁 Revalidar automáticamente cuando cambia el subtotal
   useEffect(() => {
     if (!discountData?.code) return;
 
@@ -127,7 +114,7 @@ export default function CartDrawer({ open, onClose }) {
           setDiscountAmount(0);
           setDiscountData(null);
           setDiscountMessage(
-            "El descuento fue removido porque ya no cumple las condiciones.",
+            "El descuento fue removido porque ya no cumple las condiciones."
           );
           return;
         }
@@ -173,18 +160,17 @@ export default function CartDrawer({ open, onClose }) {
     }
   }
 
+  const discountDisabled = cart.length === 0;
+
   return (
     <>
-      {open && (
-        <div className="fixed inset-0 bg-black/50 z-40" onClick={onClose} />
-      )}
+      {open && <div className="fixed inset-0 bg-black/50 z-40" onClick={onClose} />}
 
       <div
         className={`fixed top-0 right-0 h-full w-96 bg-white z-50 shadow-lg transform transition-transform duration-300 ${
           open ? "translate-x-0" : "translate-x-full"
         }`}
       >
-        {/* Header */}
         <div className="p-4 border-b flex justify-between items-center">
           <h3 className="text-xl font-bold text-coffee">Tu Carrito</h3>
           <button onClick={onClose}>
@@ -192,7 +178,6 @@ export default function CartDrawer({ open, onClose }) {
           </button>
         </div>
 
-        {/* Body */}
         <div className="p-4 flex-1 overflow-y-auto space-y-4">
           {cart.length === 0 ? (
             <p className="text-gray-600 text-center mt-10">
@@ -240,21 +225,26 @@ export default function CartDrawer({ open, onClose }) {
           )}
         </div>
 
-        {/* Footer */}
         <div className="p-4 border-t bg-gray-50 space-y-3">
-          {/* Código descuento */}
           <div className="flex gap-2">
             <input
               type="text"
               placeholder="Código de descuento"
               value={discountCode}
+              disabled={discountDisabled}
               onChange={(e) => setDiscountCode(e.target.value)}
-              className="flex-1 border px-2 py-1 rounded"
+              className={`flex-1 border px-2 py-1 rounded ${
+                discountDisabled ? "bg-gray-200 cursor-not-allowed" : ""
+              }`}
             />
             <button
               onClick={() => validateDiscount()}
-              disabled={validating}
-              className="bg-coffee text-white px-3 rounded"
+              disabled={discountDisabled || validating}
+              className={`px-3 rounded text-white ${
+                discountDisabled
+                  ? "bg-gray-400 cursor-not-allowed"
+                  : "bg-coffee"
+              }`}
             >
               {validating ? "..." : "Aplicar"}
             </button>
@@ -270,7 +260,6 @@ export default function CartDrawer({ open, onClose }) {
             </p>
           )}
 
-          {/* Resumen */}
           <div className="flex justify-between">
             <span>Subtotal</span>
             <span>{formatPrice(subtotal)}</span>
@@ -278,7 +267,12 @@ export default function CartDrawer({ open, onClose }) {
 
           {discountAmount > 0 && (
             <div className="flex justify-between text-green-600">
-              <span>Descuento ({discountData?.value || 0}%)</span>
+              <span>
+                Descuento{" "}
+                {discountData?.type === "PERCENTAGE"
+                  ? `(${discountData?.value}%)`
+                  : ""}
+              </span>
               <span>- {formatPrice(discountAmount)}</span>
             </div>
           )}

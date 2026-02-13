@@ -53,7 +53,7 @@ export default function Navbar({ onCartToggle }) {
           {/* Logo + Título animado */}
           <div className="flex items-center gap-2">
             <img
-              src="/src/public/LogoCheos.jpeg"
+              src="/src/public/LogoCheos.png"
               alt="Logo Cheo's Café"
               className="w-10 h-10 object-contain"
             />
