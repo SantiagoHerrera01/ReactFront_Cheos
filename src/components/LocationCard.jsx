@@ -22,7 +22,7 @@ export default function LocationCard({
       <div
         className={`
           relative w-full overflow-hidden
-          ${desktop ? "md:h-[280px]" : "h-56"}
+          ${desktop ? "md:h-[270px]" : "h-56"}
         `}
       >
         {location.map_iframe ? (
@@ -75,8 +75,8 @@ export default function LocationCard({
       {/* 📝 CONTENIDO 30% */}
       <div
         className={`
-          p-4 flex flex-col justify-center
-          ${desktop ? "md:h-[120px]" : ""}
+          p-4 -mt-2 flex flex-col justify-center
+          ${desktop ? "md:h-[130px]" : ""}
         `}
       >
         <div className="overflow-hidden">
