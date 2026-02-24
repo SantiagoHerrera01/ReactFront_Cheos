@@ -1,8 +1,8 @@
-import React from 'react'
+import React, { useState } from 'react'
 import { useCart } from '../context/CartContext'
 import { useUser } from '../context/UserContext'
 import { useAlert } from '../context/AlertContext'
-import { Pencil, Trash2 } from 'lucide-react'
+import { Pencil, Trash2, Star } from 'lucide-react'
 
 export default function ProductCard({ product, onOpenCart, onEdit, onDelete }) {
   const { addToCart } = useCart()
@@ -10,7 +10,14 @@ export default function ProductCard({ product, onOpenCart, onEdit, onDelete }) {
   const { confirmDelete, successToast } = useAlert()
   const isAdmin = user?.role === 'ADMIN'
 
-  // ✅ Formateador profesional en pesos colombianos
+  const [rating, setRating] = useState(0)
+
+  const isOutOfStock = product.stock === 0
+  const isLowStock =
+    product.stock !== undefined &&
+    product.stock <= 10 &&
+    product.stock > 0
+
   const formatPrice = (value) => {
     return new Intl.NumberFormat('es-CO', {
       style: 'currency',
@@ -19,12 +26,10 @@ export default function ProductCard({ product, onOpenCart, onEdit, onDelete }) {
     }).format(value)
   }
 
-  // 🛒 Agregar al carrito + Toast
   const handleAdd = () => {
+    if (isOutOfStock) return
     addToCart(product)
-
     successToast(`${product.name} agregado al carrito 🛒`)
-
     if (onOpenCart) onOpenCart()
   }
 
@@ -40,14 +45,35 @@ export default function ProductCard({ product, onOpenCart, onEdit, onDelete }) {
   }
 
   return (
-    <div className="relative w-full md:w-[260px] h-auto md:h-[400px] bg-white rounded-2xl shadow-lg border border-gray-100 flex-shrink-0 hover:shadow-xl transition overflow-hidden">
+    <div
+      className={`relative w-full md:w-[260px] h-auto md:h-[400px] bg-white rounded-2xl shadow-lg border border-gray-100 flex-shrink-0 hover:shadow-xl transition overflow-hidden ${
+        isOutOfStock ? 'order-last' : ''
+      }`}
+    >
       
+      {/* Imagen */}
       <div className="relative h-44 w-full overflow-hidden">
         <img
           src={product.images?.[0] || product.image}
           alt={product.name}
-          className="w-full h-full object-cover"
+          className={`w-full h-full object-cover transition ${
+            isOutOfStock ? 'grayscale' : ''
+          }`}
         />
+
+        {isOutOfStock && (
+          <div className="absolute inset-0 bg-black/50 flex items-center justify-center">
+            <span className="text-white font-bold text-sm tracking-wider">
+              PRODUCTO AGOTADO
+            </span>
+          </div>
+        )}
+
+        {isLowStock && (
+          <div className="absolute bottom-2 left-2 bg-red-600 text-white text-xs px-2 py-1 rounded-md shadow">
+            Pocas unidades
+          </div>
+        )}
 
         {isAdmin && (
           <div className="absolute top-2 right-2 flex gap-2">
@@ -69,14 +95,52 @@ export default function ProductCard({ product, onOpenCart, onEdit, onDelete }) {
         )}
       </div>
 
+      {/* Contenido */}
       <div className="p-4 flex flex-col justify-between h-[calc(100%-176px)]">
+        
         <div className="overflow-hidden">
-          <h3 className="font-semibold text-black text-base line-clamp-1">
+
+          <h3 className="font-bold text-black text-lg tracking-wide line-clamp-1 uppercase">
             {product.name}
           </h3>
-          <div className="text-sm text-gray-600 h-[70px] overflow-y-auto custom-scrollbar pr-1">
+
+          {(product.weight || product.category) && (
+            <div className="flex justify-between text-base text-gray-700 mt-1">
+              
+              {product.weight && (
+                <p>
+                  <span className="font-semibold">Peso:</span> {product.weight} g
+                </p>
+              )}
+
+              {product.category && (
+                <p>
+                  <span className="font-semibold">Tipo:</span> {product.category}
+                </p>
+              )}
+
+            </div>
+          )}
+
+          <div className="text-sm text-gray-600 h-[50px] overflow-y-auto custom-scrollbar pr-1 mt-2">
             {product.description}
           </div>
+
+          <div className="flex items-center gap-1 mt-2">
+            {[1, 2, 3, 4, 5].map((star) => (
+              <Star
+                key={star}
+                size={18}
+                onClick={() => setRating(star)}
+                className={`cursor-pointer transition ${
+                  star <= rating
+                    ? 'text-yellow-400 fill-yellow-400'
+                    : 'text-gray-300'
+                }`}
+              />
+            ))}
+          </div>
+
         </div>
 
         <div className="mt-3 flex items-center justify-between">
@@ -85,7 +149,12 @@ export default function ProductCard({ product, onOpenCart, onEdit, onDelete }) {
           </span>
           <button
             onClick={handleAdd}
-            className="bg-[#3b2f2f] hover:bg-[#5a4332] text-white px-3 py-1.5 rounded-lg shadow-md transition-colors duration-200"
+            disabled={isOutOfStock}
+            className={`px-3 py-1.5 rounded-lg shadow-md transition-colors duration-200 text-white ${
+              isOutOfStock
+                ? 'bg-gray-400 cursor-not-allowed'
+                : 'bg-[#3b2f2f] hover:bg-[#5a4332]'
+            }`}
           >
             Agregar
           </button>
