@@ -1,5 +1,5 @@
 import React, { useEffect, useRef, useState } from "react"
-import { ChevronLeft, ChevronRight } from "lucide-react"
+import { ChevronLeft, ChevronRight, Search } from "lucide-react"
 import { useUser } from "../context/UserContext"
 import { useAlert } from "../context/AlertContext"
 import { getLocations, deleteLocation } from "../routes/locations"
@@ -15,12 +15,26 @@ export default function LocationsSection() {
   const [editing, setEditing] = useState(null)
   const [canScroll, setCanScroll] = useState(false)
 
+  const [search, setSearch] = useState("")
+
   const carouselRef = useRef(null)
 
   const { user, token } = useUser()
   const { confirmDelete, successToast, errorAlert } = useAlert()
 
   const isAdmin = user?.role === "ADMIN"
+
+  const filteredLocs = locs.filter((l) => {
+    const value = search.toLowerCase()
+
+    return (
+      l.name?.toLowerCase().includes(value) ||
+      l.department?.toLowerCase().includes(value) ||
+      l.city?.toLowerCase().includes(value) ||
+      l.address?.toLowerCase().includes(value) ||
+      l.sector?.toLowerCase().includes(value)
+    )
+  })
 
   const loadLocations = async () => {
     try {
@@ -43,7 +57,6 @@ export default function LocationsSection() {
     loadLocations()
   }, [])
 
-  // 🔎 Detectar overflow
   useEffect(() => {
     const container = carouselRef.current
     if (!container) return
@@ -56,7 +69,7 @@ export default function LocationsSection() {
     window.addEventListener("resize", checkOverflow)
 
     return () => window.removeEventListener("resize", checkOverflow)
-  }, [locs, isAdmin])
+  }, [locs, isAdmin, filteredLocs])
 
   const scroll = (dir) => {
     if (!canScroll) return
@@ -95,9 +108,29 @@ export default function LocationsSection() {
   return (
     <section id="locations" className="py-12 bg-white text-black">
       <div className="max-w-6xl mx-auto px-4">
+
         <h2 className="text-3xl font-bold text-center text-coffee mb-8">
           Nuestras Tiendas
         </h2>
+
+        {/* 🔍 BUSCADOR */}
+        <div className="mb-6">
+          <div className="relative w-80">
+            <Search
+              size={16}
+              className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-400"
+            />
+            <input
+              type="text"
+              placeholder="Departamento, Ciudad o Dirección..."
+              value={search}
+              onChange={(e) => setSearch(e.target.value)}
+              className="w-full pl-9 pr-4 py-2 text-sm rounded-lg 
+                         border border-gray-300 
+                         focus:outline-none focus:ring-1 focus:ring-coffee/40"
+            />
+          </div>
+        </div>
 
         {/* 📱 MOBILE */}
         <div className="grid grid-cols-1 sm:grid-cols-2 gap-6 md:hidden">
@@ -116,7 +149,13 @@ export default function LocationsSection() {
             </div>
           )}
 
-          {locs.map((l) => (
+          {filteredLocs.length === 0 && search.trim() !== "" && (
+            <div className="col-span-full text-center text-gray-500 py-10">
+              No se encontró ninguna tienda en este lugar.
+            </div>
+          )}
+
+          {filteredLocs.map((l) => (
             <LocationCard
               key={l.id}
               location={l}
@@ -163,7 +202,13 @@ export default function LocationsSection() {
               </div>
             )}
 
-            {locs.map((l) => (
+            {filteredLocs.length === 0 && search.trim() !== "" && (
+              <div className="w-full text-center text-gray-500 py-10">
+                No se encontró ninguna tienda en este lugar.
+              </div>
+            )}
+
+            {filteredLocs.map((l) => (
               <LocationCard
                 key={l.id}
                 location={l}
