@@ -5,7 +5,7 @@ import { useUser } from '../context/UserContext'
 import { useAlert } from '../context/AlertContext'
 
 export default function AboutSection() {
-  const API_BASE = 'http://localhost:8080/api/v1/config'
+  const API_BASE = (import.meta.env.VITE_API_URL || 'http://localhost:8080/api/v1') + '/config'
   const { user, token, loading } = useUser()
   const { successToast, errorAlert } = useAlert()
 
