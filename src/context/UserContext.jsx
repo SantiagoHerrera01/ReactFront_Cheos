@@ -2,102 +2,116 @@ import { createContext, useContext, useState, useEffect } from 'react'
 
 const UserContext = createContext()
 
+const REQUIRED_FIELDS = ['phone', 'gender', 'municipality', 'neighborhood', 'city', 'birth_date']
+
+export const getIncompleteFields = (user) => {
+  if (!user) return []
+  return REQUIRED_FIELDS.filter(f => !user[f])
+}
+
 export function UserProvider({ children }) {
   const API_BASE = import.meta.env.VITE_API_URL || 'http://localhost:8080/api/v1'
-  const [user, setUser] = useState(null)
-  const [token, setToken] = useState(null)
-  const [loading, setLoading] = useState(true)
+  const [user, setUser]                       = useState(null)
+  const [token, setToken]                     = useState(null)
+  const [loading, setLoading]                 = useState(true)
+  const [profileIncomplete, setProfileIncomplete] = useState(false)
 
-  // 🧩 Reconstruir usuario desde localStorage
-  useEffect(() => {
-    const savedToken = localStorage.getItem("access_token")
+  const checkProfile = (userData) => {
+    const missing = getIncompleteFields(userData)
+    setProfileIncomplete(missing.length > 0)
+  }
 
-    if (!savedToken) {
-      setLoading(false)
-      return
-    }
-
-    setToken(savedToken)
-
-    fetch(`${API_BASE}/users/me`, {
-      method: 'GET',
-      headers: {
-        'Authorization': `Bearer ${savedToken}`,
-        'Content-Type': 'application/json'
-      }
+  const fetchProfile = async (savedToken) => {
+    const res  = await fetch(`${API_BASE}/users/me`, {
+      headers: { Authorization: `Bearer ${savedToken}`, 'Content-Type': 'application/json' },
     })
-      .then(res => res.json())
-      .then(data => {
-        if (data.success) {
-          setUser(data.data)
-        } else {
-          logout()
-        }
-      })
+    const data = await res.json()
+    if (data.success) {
+      setUser(data.data)
+      checkProfile(data.data)
+      return true
+    }
+    return false
+  }
+
+  useEffect(() => {
+    const savedToken = localStorage.getItem('access_token')
+    if (!savedToken) { setLoading(false); return }
+    setToken(savedToken)
+    fetchProfile(savedToken)
       .catch(() => logout())
       .finally(() => setLoading(false))
   }, [])
 
-  // 🔐 Login
+  const refreshUser = async () => {
+    if (!token) return
+    await fetchProfile(token)
+  }
+
   const login = async ({ email, password }) => {
     try {
-      const res = await fetch(`${API_BASE}/auth/login`, {
+      const res  = await fetch(`${API_BASE}/auth/login`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ email, password }),
         credentials: 'include',
       })
-
       const data = await res.json()
       if (!res.ok) return { success: false, message: data.message }
 
-      // Guardar token en localStorage
       const accessToken = data.data.access_token
-      localStorage.setItem("access_token", accessToken)
+      localStorage.setItem('access_token', accessToken)
       setToken(accessToken)
 
-      // Obtener perfil del usuario
-      const userRes = await fetch(`${API_BASE}/users/me`, {
-        method: "GET",
-        headers: { 'Authorization': `Bearer ${accessToken}` }
+      const userRes  = await fetch(`${API_BASE}/users/me`, {
+        headers: { Authorization: `Bearer ${accessToken}` },
       })
-
       const userData = await userRes.json()
-      if (userRes.ok && userData.success) setUser(userData.data)
+      if (userRes.ok && userData.success) {
+        setUser(userData.data)
+        checkProfile(userData.data)
+        // Devolver si el perfil está incompleto para que el caller lo sepa
+        const missing = getIncompleteFields(userData.data)
+        return { success: true, profileIncomplete: missing.length > 0 }
+      }
 
-      return { success: true }
+      return { success: true, profileIncomplete: false }
     } catch (err) {
       return { success: false, message: err.message }
     }
   }
 
-  // 🆕 Register
   const register = async ({ name, email, password, phone }) => {
     try {
-      const res = await fetch(`${API_BASE}/auth/register`, {
+      const res  = await fetch(`${API_BASE}/auth/register`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ name, email, password, phone })
+        body: JSON.stringify({ name, email, password, phone }),
       })
-
       const data = await res.json()
       if (!res.ok) return { success: false, message: data.message }
-
       return { success: true, message: data.message }
     } catch (err) {
       return { success: false, message: err.message }
     }
   }
 
-  // 🚪 Logout
   const logout = () => {
     setUser(null)
     setToken(null)
-    localStorage.removeItem("access_token")
+    setProfileIncomplete(false)
+    localStorage.removeItem('access_token')
   }
 
+  // Llamar cuando el usuario cierra la alerta manualmente
+  const dismissProfileAlert = () => setProfileIncomplete(false)
+
   return (
-    <UserContext.Provider value={{ user, token, loading, login, register, logout }}>
+    <UserContext.Provider value={{
+      user, setUser, token, loading,
+      login, register, logout, refreshUser,
+      profileIncomplete, dismissProfileAlert,
+    }}>
       {children}
     </UserContext.Provider>
   )
