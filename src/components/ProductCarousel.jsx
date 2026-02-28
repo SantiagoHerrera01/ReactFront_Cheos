@@ -5,6 +5,7 @@ import { useAlert } from '../context/AlertContext'
 import ProductCard from './ProductCard'
 import AddProductModal from './AddProductModal'
 import EditProductModal from './EditProductModal'
+import CoffeeLoader from './Coffeeloader'
 import { ChevronLeft, ChevronRight } from 'lucide-react'
 
 export default function ProductCarousel() {
@@ -45,7 +46,6 @@ export default function ProductCarousel() {
     loadProducts()
   }, [])
 
-  // 🔎 Detectar overflow del carrusel
   useEffect(() => {
     const container = carouselRef.current
     if (!container) return
@@ -56,7 +56,6 @@ export default function ProductCarousel() {
 
     checkOverflow()
     window.addEventListener('resize', checkOverflow)
-
     return () => window.removeEventListener('resize', checkOverflow)
   }, [products, isAdmin])
 
@@ -64,9 +63,7 @@ export default function ProductCarousel() {
     try {
       const res = await fetch(`${API_BASE}/products/${id}`, {
         method: 'DELETE',
-        headers: {
-          Authorization: `Bearer ${token}`,
-        }
+        headers: { Authorization: `Bearer ${token}` }
       })
 
       if (!res.ok) {
@@ -83,15 +80,12 @@ export default function ProductCarousel() {
 
   const scroll = (dir) => {
     if (!canScroll) return
-
     const container = carouselRef.current
     if (!container) return
-
-    const amount = 280
     container.scrollTo({
       left: dir === 'left'
-        ? container.scrollLeft - amount
-        : container.scrollLeft + amount,
+        ? container.scrollLeft - 280
+        : container.scrollLeft + 280,
       behavior: 'smooth'
     })
   }
@@ -104,7 +98,7 @@ export default function ProductCarousel() {
         </h2>
 
         {loading ? (
-          <p className="text-center text-gray-600">Cargando...</p>
+          <CoffeeLoader variant="grinder" message="Cargando productos..." />
         ) : (
           <>
             {/* 📱 MOBILE */}
@@ -112,15 +106,14 @@ export default function ProductCarousel() {
               {isAdmin && (
                 <div
                   onClick={() => setAddOpen(true)}
-                  className="w-full h-[240px] flex flex-col items-center justify-center 
-                             bg-[#f9f6f2] border-2 border-dashed border-coffee/50 
+                  className="w-full h-[240px] flex flex-col items-center justify-center
+                             bg-[#f9f6f2] border-2 border-dashed border-coffee/50
                              rounded-2xl cursor-pointer hover:bg-[#f1ece7]"
                 >
                   <span className="text-coffee text-5xl font-bold mb-2">+</span>
                   <p className="text-coffee font-medium">Agregar producto</p>
                 </div>
               )}
-
               {products.map((p) => (
                 <ProductCard
                   key={p.id}
@@ -137,8 +130,8 @@ export default function ProductCarousel() {
               {canScroll && (
                 <button
                   onClick={() => scroll('left')}
-                  className="absolute left-[-50px] top-1/2 -translate-y-1/2 
-                             p-3 bg-white/90 hover:bg-coffee hover:text-white 
+                  className="absolute left-[-50px] top-1/2 -translate-y-1/2
+                             p-3 bg-white/90 hover:bg-coffee hover:text-white
                              rounded-full shadow-lg transition"
                 >
                   <ChevronLeft size={26} />
@@ -152,16 +145,15 @@ export default function ProductCarousel() {
                 {isAdmin && (
                   <div
                     onClick={() => setAddOpen(true)}
-                    className="w-[260px] h-[400px] flex-shrink-0 
-                               flex flex-col items-center justify-center 
-                               bg-[#f9f6f2] border-2 border-dashed border-coffee/50 
+                    className="w-[260px] h-[400px] flex-shrink-0
+                               flex flex-col items-center justify-center
+                               bg-[#f9f6f2] border-2 border-dashed border-coffee/50
                                rounded-2xl cursor-pointer hover:bg-[#f1ece7]"
                   >
                     <span className="text-coffee text-5xl font-bold mb-2">+</span>
                     <p className="text-coffee font-medium">Agregar producto</p>
                   </div>
                 )}
-
                 {products.map((p) => (
                   <ProductCard
                     key={p.id}
@@ -175,8 +167,8 @@ export default function ProductCarousel() {
               {canScroll && (
                 <button
                   onClick={() => scroll('right')}
-                  className="absolute right-[-50px] top-1/2 -translate-y-1/2 
-                             p-3 bg-white/90 hover:bg-coffee hover:text-white 
+                  className="absolute right-[-50px] top-1/2 -translate-y-1/2
+                             p-3 bg-white/90 hover:bg-coffee hover:text-white
                              rounded-full shadow-lg transition"
                 >
                   <ChevronRight size={26} />
