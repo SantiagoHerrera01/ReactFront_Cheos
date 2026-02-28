@@ -8,6 +8,7 @@ import AboutSection from './components/AboutSection'
 import Footer from './components/Footer'
 import CartDrawer from './components/CartDrawer'
 import Dashboard from './pages/Dashboard'
+import ResetPassword from './pages/ResetPassword'
 import { CartProvider } from './context/CartContext'
 import { UserProvider } from './context/UserContext'
 import FloatingSocialMenu from './components/FloatingSocialMenu'
@@ -47,6 +48,9 @@ export default function App(){
                 </>
               }
             />
+
+            {/* RESET PASSWORD */}
+            <Route path="/reset-password" element={<ResetPassword />} />
 
             {/* DASHBOARD */}
             <Route path="/admin" element={<Dashboard />} />
