@@ -45,7 +45,7 @@ export default function ModalLoginRegister({ open, onClose }) {
       }
     }
 
-    if (!form.email) {
+    if (!form.email.trim()) {
       newErrors.email = 'El correo es obligatorio'
     } else if (!/\S+@\S+\.\S+/.test(form.email)) {
       newErrors.email = 'Correo electrónico inválido'
@@ -79,6 +79,7 @@ export default function ModalLoginRegister({ open, onClose }) {
     setErrors({ ...errors, [e.target.name]: '' })
   }
 
+
   const handleSubmit = async e => {
     e.preventDefault()
     if (!validate()) return
@@ -107,7 +108,6 @@ export default function ModalLoginRegister({ open, onClose }) {
           return
         }
 
-        // ✅ MENSAJE SIMPLE EN EL FORM (NO ALERTA)
         setSuccessMessage('Usuario registrado correctamente. Inicia sesión.')
 
         setMode('login')
