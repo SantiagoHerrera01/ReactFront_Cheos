@@ -4,8 +4,11 @@ import { useUser, getIncompleteFields } from "../context/UserContext";
 import { useAlert } from "../context/AlertContext";
 import { createOrder } from "../routes/orders";
 import ModalLoginRegister from "./ModalLoginRegister";
-import ProfileModal from "./ProfileModal"; // ← importado
-import { X, Trash2, Minus, Plus, CreditCard, Truck, Tag, ShoppingBag, ArrowRight } from "lucide-react";
+import ProfileModal from "./ProfileModal";
+import {
+  X, Trash2, Minus, Plus, CreditCard, Truck,
+  Tag, ShoppingBag, ArrowRight, Coffee, Lock, AlertTriangle,
+} from "lucide-react";
 
 const API_BASE = import.meta.env.VITE_API_URL || "http://localhost:8080/api/v1";
 
@@ -103,14 +106,12 @@ function SadCoffeeBlock({ missingFields, onGoToProfile }) {
         <path d="M48 42 Q45 36 48 30" stroke="#d1d5db" strokeWidth="1.5" strokeLinecap="round" fill="none" opacity="0.4" />
         <path d="M62 42 Q59 36 62 30" stroke="#d1d5db" strokeWidth="1.5" strokeLinecap="round" fill="none" opacity="0.4" />
       </svg>
-
       <div className="space-y-1.5">
         <p className="text-base font-bold text-neutral-900">¡Tu café no puede salir!</p>
         <p className="text-sm text-neutral-500 leading-relaxed">
           Necesitamos algunos datos tuyos antes de procesar tu pedido.
         </p>
       </div>
-
       <div className="w-full bg-neutral-50 border border-neutral-200 rounded-xl px-4 py-3 space-y-2">
         <p className="text-xs font-semibold text-neutral-500 uppercase tracking-widest text-left">Faltan estos datos</p>
         <div className="flex flex-wrap gap-1.5">
@@ -122,25 +123,61 @@ function SadCoffeeBlock({ missingFields, onGoToProfile }) {
           ))}
         </div>
       </div>
-
       <button
         onClick={onGoToProfile}
         className="w-full flex items-center justify-center gap-2 bg-neutral-900 text-white py-3 rounded-xl text-sm font-bold hover:bg-neutral-700 transition-all hover:-translate-y-0.5 hover:shadow-lg active:translate-y-0"
       >
-        Completar mi perfil
-        <ArrowRight size={15} />
+        Completar mi perfil <ArrowRight size={15} />
       </button>
+      <p className="text-xs text-neutral-400">Solo toma un minuto ☕</p>
+    </div>
+  );
+}
 
-      <p className="text-xs text-neutral-400">
-        Solo toma un minuto ☕
-      </p>
+/* ── Producto agotado al pagar ── */
+function OutOfStockAlert({ productName, onRemove, onClose }) {
+  return (
+    <div className="fixed inset-0 z-[9999] flex items-center justify-center px-4">
+      <div className="absolute inset-0 bg-black/60 backdrop-blur-sm" onClick={onClose} />
+      <div className="relative w-full max-w-sm bg-white rounded-3xl overflow-hidden shadow-2xl animate-in fade-in slide-in-from-bottom-4 duration-300">
+        <div className="h-1.5 w-full bg-gradient-to-r from-red-300 via-red-500 to-red-800" />
+        <button onClick={onClose} className="absolute top-4 right-4 w-8 h-8 rounded-xl flex items-center justify-center text-neutral-400 hover:text-neutral-700 hover:bg-neutral-100 transition-colors">
+          <X size={16} />
+        </button>
+        <div className="px-7 pt-7 pb-8 flex flex-col items-center text-center gap-5">
+          <div className="w-20 h-20 rounded-2xl bg-red-50 border border-red-100 flex items-center justify-center">
+            <AlertTriangle size={32} className="text-red-500" />
+          </div>
+          <div className="space-y-2">
+            <h2 className="text-xl font-bold text-neutral-900 leading-tight tracking-tight">Producto agotado</h2>
+            <p className="text-sm text-neutral-500 leading-relaxed">
+              <span className="font-semibold text-neutral-700">"{productName}"</span> se agotó justo antes de procesar tu pedido. Necesitas retirarlo para continuar.
+            </p>
+          </div>
+          <div className="flex items-center gap-3 w-full">
+            <div className="flex-1 h-px bg-neutral-100" />
+            <span className="text-xs text-neutral-300 font-medium">¿qué hacemos?</span>
+            <div className="flex-1 h-px bg-neutral-100" />
+          </div>
+          <div className="w-full space-y-2.5">
+            <button onClick={onRemove} className="w-full flex items-center justify-center gap-2 py-3.5 rounded-xl bg-red-500 text-white text-sm font-bold hover:bg-red-600 transition-all hover:-translate-y-0.5 hover:shadow-lg active:scale-[0.98]">
+              <Trash2 size={15} /> Retirar del carrito y continuar
+            </button>
+            <button onClick={onClose} className="w-full py-3 rounded-xl text-sm font-medium text-neutral-400 hover:text-neutral-600 hover:bg-neutral-50 transition-colors">
+              Volver al carrito
+            </button>
+          </div>
+          <p className="text-xs text-neutral-300">Tus demás productos siguen en el carrito ☕</p>
+        </div>
+      </div>
     </div>
   );
 }
 
 export default function CartDrawer({ open, onClose, onOpenProfile }) {
-  const { cart = [], removeFromCart, updateQuantity, clearCart } = useCart();
-  const { user, token, profileIncomplete } = useUser();
+  // ← onOrderSuccess reemplaza clearCart: limpia carrito + refresca catálogo
+  const { cart = [], removeFromCart, updateQuantity, onOrderSuccess } = useCart();
+  const { user, token } = useUser();
   const { successToast, errorAlert } = useAlert();
 
   const [discountCode, setDiscountCode]       = useState("");
@@ -150,11 +187,10 @@ export default function CartDrawer({ open, onClose, onOpenProfile }) {
   const [discountMessage, setDiscountMessage] = useState(null);
   const [paymentMethod, setPaymentMethod]     = useState("CONTRA_ENTREGA");
   const [openAuth, setOpenAuth]               = useState(false);
-  const [pendingCheckout, setPendingCheckout] = useState(false);
   const [loading, setLoading]                 = useState(false);
-
-  // ← nuevo estado para el ProfileModal
-  const [profileOpen, setProfileOpen] = useState(false);
+  const [profileOpen, setProfileOpen]         = useState(false);
+  const [loginAlert, setLoginAlert]           = useState(false);
+  const [outOfStockAlert, setOutOfStockAlert] = useState(null);
 
   const missingFields = user ? getIncompleteFields(user) : [];
   const isBlocked     = user && missingFields.length > 0;
@@ -176,8 +212,7 @@ export default function CartDrawer({ open, onClose, onOpenProfile }) {
       const data = await res.json();
       if (!data.success || !data.data.valid) {
         setDiscountMessage(translateMessage(data.data?.message));
-        setDiscountAmount(0);
-        setDiscountData(null);
+        setDiscountAmount(0); setDiscountData(null);
         return;
       }
       setDiscountData(data.data.discount_code);
@@ -185,8 +220,7 @@ export default function CartDrawer({ open, onClose, onOpenProfile }) {
       setDiscountMessage("Código aplicado correctamente ✅");
     } catch {
       setDiscountMessage("Error al validar descuento.");
-      setDiscountAmount(0);
-      setDiscountData(null);
+      setDiscountAmount(0); setDiscountData(null);
     } finally {
       setValidating(false);
     }
@@ -220,17 +254,23 @@ export default function CartDrawer({ open, onClose, onOpenProfile }) {
       customer_phone: user?.phone || "",
       payment_method: paymentMethod,
       shipping_address: {
-        street: "Calle 50", number: "#25-30", city: "Medellín",
-        department: "Antioquia", zip_code: "050001", details: "Entrega estándar",
+        street:     user?.city         || "",
+        number:     user?.neighborhood || "",
+        city:       user?.municipality || "",
+        department: "",
+        zip_code:   "",
+        details:    "",
       },
-      items: cart.map((i) => ({ product_id: i.id, quantity: i.quantity })),
+      items: cart.map(i => ({ product_id: i.id, quantity: i.quantity })),
       ...(discountData?.code ? { discount_code: discountData.code } : {}),
     };
 
     setLoading(true);
     try {
       await createOrder(payload, token);
-      clearCart();
+
+      // Limpia carrito Y refresca el catálogo en un solo paso
+      onOrderSuccess();
       setDiscountAmount(0); setDiscountData(null); setDiscountCode("");
       setLoading(false);
       successToast(
@@ -241,36 +281,42 @@ export default function CartDrawer({ open, onClose, onOpenProfile }) {
       onClose();
     } catch (e) {
       setLoading(false);
-      errorAlert(e.message || "Error al crear el pedido");
+      const errorMsg = e?.message || e?.error || "";
+      const match = errorMsg.match(/el producto (.+?) no está disponible/i);
+      if (match) {
+        const name = match[1].trim();
+        const item = cart.find(i => i.name.toLowerCase().trim() === name.toLowerCase().trim());
+        setOutOfStockAlert({ id: item?.id ?? null, name });
+        return;
+      }
+      errorAlert(errorMsg || "Error al crear el pedido");
     }
   }
 
   async function checkout() {
-    if (!user || !token) { setPendingCheckout(true); setOpenAuth(true); return; }
+    if (!user || !token) { setLoginAlert(true); return; }
     if (isBlocked) return;
     await doCheckout();
   }
 
-  useEffect(() => {
-    if (user && token && pendingCheckout) {
-      setPendingCheckout(false);
-      setOpenAuth(false);
-      if (getIncompleteFields(user).length === 0) doCheckout();
-    }
-  }, [user, token, pendingCheckout]);
-
-  // ← al hacer clic en "Completar mi perfil":
-  //   cierra el carrito y abre el ProfileModal
-  const handleGoToProfile = () => {
-    onClose();
-    setProfileOpen(true);
-    // También llama al prop por si el padre necesita saberlo
-    if (onOpenProfile) onOpenProfile();
+  const handleRemoveOutOfStock = () => {
+    if (outOfStockAlert?.id) removeFromCart(outOfStockAlert.id);
+    setOutOfStockAlert(null);
   };
+
+  const handleIncrement = (item) => {
+    if (item.stock !== undefined && item.quantity >= item.stock) {
+      errorAlert(`Solo hay ${item.stock} unidad${item.stock === 1 ? '' : 'es'} disponible${item.stock === 1 ? '' : 's'} de "${item.name}".`);
+      return;
+    }
+    updateQuantity(item.id, item.quantity + 1);
+  };
+
+  const showDrawerBackdrop = open && !openAuth && !loginAlert && !outOfStockAlert;
 
   return (
     <>
-      {open && <div className="fixed inset-0 bg-black/50 z-40" onClick={onClose} />}
+      {showDrawerBackdrop && <div className="fixed inset-0 bg-black/50 z-40" onClick={onClose} />}
 
       <div className={`fixed top-0 right-0 h-full w-full sm:w-[420px] bg-white z-50 shadow-2xl flex flex-col transition-transform duration-300 ease-in-out ${open ? "translate-x-0" : "translate-x-full"}`}>
 
@@ -289,19 +335,12 @@ export default function CartDrawer({ open, onClose, onOpenProfile }) {
           </button>
         </div>
 
-        {/* Loading */}
         {loading ? (
-          <div className="flex-1 flex items-center justify-center">
-            <CoffeeLoader />
-          </div>
-
-        /* Bloqueo por perfil incompleto */
+          <div className="flex-1 flex items-center justify-center"><CoffeeLoader /></div>
         ) : isBlocked ? (
-          <SadCoffeeBlock missingFields={missingFields} onGoToProfile={handleGoToProfile} />
-
+          <SadCoffeeBlock missingFields={missingFields} onGoToProfile={() => { onClose(); setProfileOpen(true); if (onOpenProfile) onOpenProfile(); }} />
         ) : (
           <>
-            {/* Items */}
             {cart.length === 0 ? (
               <div className="flex-1 flex flex-col items-center justify-center gap-3 px-6 text-neutral-400">
                 <div className="w-16 h-16 rounded-2xl bg-neutral-100 flex items-center justify-center">
@@ -312,65 +351,59 @@ export default function CartDrawer({ open, onClose, onOpenProfile }) {
               </div>
             ) : (
               <div className="flex-1 overflow-y-auto px-4 py-4 space-y-2.5">
-                {cart.map((item) => (
-                  <div key={item.id} className="flex items-center gap-3 bg-neutral-50 rounded-xl p-3 border border-neutral-100 hover:border-neutral-200 transition-colors">
-                    <div className="w-11 h-11 rounded-lg bg-neutral-200 flex-shrink-0 flex items-center justify-center overflow-hidden">
-                      {item.image
-                        ? <img src={item.image} alt={item.name} className="w-full h-full object-cover" />
-                        : <span className="text-lg">☕</span>
-                      }
+                {cart.map(item => {
+                  const atMax = item.stock !== undefined && item.quantity >= item.stock;
+                  return (
+                    <div key={item.id} className="flex items-center gap-3 bg-neutral-50 rounded-xl p-3 border border-neutral-100 hover:border-neutral-200 transition-colors">
+                      <div className="w-11 h-11 rounded-lg bg-neutral-200 flex-shrink-0 flex items-center justify-center overflow-hidden">
+                        {item.image
+                          ? <img src={item.image} alt={item.name} className="w-full h-full object-cover" />
+                          : <span className="text-lg">☕</span>}
+                      </div>
+                      <div className="flex-1 min-w-0">
+                        <p className="text-sm font-semibold text-neutral-800 truncate">{item.name}</p>
+                        <p className="text-xs text-neutral-400 mt-0.5">{item.quantity} × {formatPrice(item.price)}</p>
+                        {atMax && <p className="text-[10px] text-amber-600 font-medium mt-0.5">Máximo disponible ({item.stock})</p>}
+                      </div>
+                      <div className="flex items-center gap-1.5 flex-shrink-0">
+                        <button onClick={() => updateQuantity(item.id, Math.max(1, item.quantity - 1))} className="w-7 h-7 rounded-md bg-neutral-200 hover:bg-neutral-300 flex items-center justify-center transition-colors">
+                          <Minus size={12} />
+                        </button>
+                        <span className="w-5 text-center text-sm font-bold text-neutral-800">{item.quantity}</span>
+                        <button onClick={() => handleIncrement(item)} disabled={atMax} className={`w-7 h-7 rounded-md flex items-center justify-center transition-colors ${atMax ? "bg-neutral-100 text-neutral-300 cursor-not-allowed" : "bg-neutral-200 hover:bg-neutral-300"}`}>
+                          <Plus size={12} />
+                        </button>
+                        <button onClick={() => removeFromCart(item.id)} className="w-7 h-7 rounded-md flex items-center justify-center text-red-400 hover:bg-red-50 transition-colors ml-0.5">
+                          <Trash2 size={13} />
+                        </button>
+                      </div>
                     </div>
-                    <div className="flex-1 min-w-0">
-                      <p className="text-sm font-semibold text-neutral-800 truncate">{item.name}</p>
-                      <p className="text-xs text-neutral-400 mt-0.5">{item.quantity} × {formatPrice(item.price)}</p>
-                    </div>
-                    <div className="flex items-center gap-1.5 flex-shrink-0">
-                      <button onClick={() => updateQuantity(item.id, Math.max(1, item.quantity - 1))}
-                        className="w-7 h-7 rounded-md bg-neutral-200 hover:bg-neutral-300 flex items-center justify-center transition-colors">
-                        <Minus size={12} />
-                      </button>
-                      <span className="w-5 text-center text-sm font-bold text-neutral-800">{item.quantity}</span>
-                      <button onClick={() => updateQuantity(item.id, item.quantity + 1)}
-                        className="w-7 h-7 rounded-md bg-neutral-200 hover:bg-neutral-300 flex items-center justify-center transition-colors">
-                        <Plus size={12} />
-                      </button>
-                      <button onClick={() => removeFromCart(item.id)}
-                        className="w-7 h-7 rounded-md flex items-center justify-center text-red-400 hover:bg-red-50 transition-colors ml-0.5">
-                        <Trash2 size={13} />
-                      </button>
-                    </div>
-                  </div>
-                ))}
+                  );
+                })}
               </div>
             )}
 
             {/* Footer */}
             <div className="flex-shrink-0 border-t border-neutral-100 bg-neutral-50 px-4 py-4 space-y-4">
-
-              {/* Descuento */}
               <div className="space-y-1.5">
                 <div className="flex gap-2">
                   <input
                     type="text" placeholder="Código de descuento" value={discountCode}
                     disabled={cart.length === 0}
-                    onChange={(e) => setDiscountCode(e.target.value)}
-                    onKeyDown={(e) => e.key === "Enter" && validateDiscount()}
+                    onChange={e => setDiscountCode(e.target.value)}
+                    onKeyDown={e => e.key === "Enter" && validateDiscount()}
                     className="flex-1 text-sm px-3 py-2 rounded-lg border border-neutral-200 bg-white focus:outline-none focus:ring-1 focus:ring-neutral-900 focus:border-neutral-900 disabled:bg-neutral-100 disabled:cursor-not-allowed transition"
                   />
                   <button onClick={() => validateDiscount()} disabled={cart.length === 0 || validating}
                     className="flex items-center gap-1.5 px-4 py-2 rounded-lg text-sm font-semibold text-white bg-neutral-900 hover:bg-neutral-700 disabled:bg-neutral-300 disabled:cursor-not-allowed transition-colors">
-                    <Tag size={13} />
-                    {validating ? "..." : "Aplicar"}
+                    <Tag size={13} />{validating ? "..." : "Aplicar"}
                   </button>
                 </div>
                 {discountMessage && (
-                  <p className={`text-xs px-1 ${discountAmount > 0 ? "text-emerald-600" : "text-red-500"}`}>
-                    {discountMessage}
-                  </p>
+                  <p className={`text-xs px-1 ${discountAmount > 0 ? "text-emerald-600" : "text-red-500"}`}>{discountMessage}</p>
                 )}
               </div>
 
-              {/* Método de pago */}
               <div className="space-y-2">
                 <p className="text-xs font-semibold text-neutral-400 uppercase tracking-widest">Método de pago</p>
                 <div className="grid grid-cols-2 gap-2">
@@ -379,22 +412,16 @@ export default function CartDrawer({ open, onClose, onOpenProfile }) {
                     { value: "TRANSFERENCIA",  label: "Transferencia",  icon: CreditCard },
                   ].map(({ value, label, icon: Icon }) => (
                     <button key={value} onClick={() => setPaymentMethod(value)}
-                      className={`flex items-center gap-2 p-3 rounded-xl border text-sm font-medium transition-all ${
-                        paymentMethod === value
-                          ? "border-neutral-900 bg-neutral-900 text-white"
-                          : "border-neutral-200 bg-white text-neutral-600 hover:border-neutral-400"
-                      }`}>
-                      <Icon size={14} /> {label}
+                      className={`flex items-center gap-2 p-3 rounded-xl border text-sm font-medium transition-all ${paymentMethod === value ? "border-neutral-900 bg-neutral-900 text-white" : "border-neutral-200 bg-white text-neutral-600 hover:border-neutral-400"}`}>
+                      <Icon size={14} />{label}
                     </button>
                   ))}
                 </div>
               </div>
 
-              {/* Totales */}
               <div className="space-y-1.5">
                 <div className="flex justify-between text-sm text-neutral-500">
-                  <span>Subtotal</span>
-                  <span>{formatPrice(subtotal)}</span>
+                  <span>Subtotal</span><span>{formatPrice(subtotal)}</span>
                 </div>
                 {discountAmount > 0 && (
                   <div className="flex justify-between text-sm font-medium text-emerald-600">
@@ -408,12 +435,8 @@ export default function CartDrawer({ open, onClose, onOpenProfile }) {
                 </div>
               </div>
 
-              {/* Checkout */}
-              <button
-                onClick={checkout}
-                disabled={!cart.length}
-                className="w-full py-3.5 rounded-xl text-sm font-bold text-white bg-neutral-900 hover:bg-neutral-700 disabled:bg-neutral-300 disabled:cursor-not-allowed transition-all hover:-translate-y-0.5 hover:shadow-lg active:translate-y-0"
-              >
+              <button onClick={checkout} disabled={!cart.length}
+                className="w-full py-3.5 rounded-xl text-sm font-bold text-white bg-neutral-900 hover:bg-neutral-700 disabled:bg-neutral-300 disabled:cursor-not-allowed transition-all hover:-translate-y-0.5 hover:shadow-lg active:translate-y-0">
                 Finalizar compra →
               </button>
             </div>
@@ -421,10 +444,68 @@ export default function CartDrawer({ open, onClose, onOpenProfile }) {
         )}
       </div>
 
-      {/* Modales */}
-      <ModalLoginRegister open={openAuth} onClose={() => setOpenAuth(false)} />
+      {outOfStockAlert && (
+        <OutOfStockAlert
+          productName={outOfStockAlert.name}
+          onRemove={handleRemoveOutOfStock}
+          onClose={() => setOutOfStockAlert(null)}
+        />
+      )}
 
-      {/* ← ProfileModal integrado directamente */}
+      {loginAlert && (
+        <div className="fixed inset-0 z-[9999] flex items-center justify-center px-4">
+          <div className="absolute inset-0 bg-black/60 backdrop-blur-sm" onClick={() => setLoginAlert(false)} />
+          <div className="relative w-full max-w-sm bg-white rounded-3xl overflow-hidden shadow-2xl animate-in fade-in slide-in-from-bottom-4 duration-300">
+            <div className="h-1.5 w-full bg-gradient-to-r from-amber-300 via-amber-700 to-stone-900" />
+            <button onClick={() => setLoginAlert(false)} className="absolute top-4 right-4 w-8 h-8 rounded-xl flex items-center justify-center text-neutral-400 hover:text-neutral-700 hover:bg-neutral-100 transition-colors">
+              <X size={16} />
+            </button>
+            <div className="px-7 pt-7 pb-8 flex flex-col items-center text-center gap-5">
+              <div className="relative">
+                <div className="w-20 h-20 rounded-2xl bg-amber-50 border border-amber-100 flex items-center justify-center">
+                  <svg width="80" height="80" viewBox="0 0 80 80" className="absolute inset-0 opacity-40">
+                    <path d="M30 28 Q27 22 30 16" stroke="#92400e" strokeWidth="1.8" strokeLinecap="round" fill="none">
+                      <animate attributeName="opacity" values="0;1;0" dur="2s" repeatCount="indefinite" />
+                    </path>
+                    <path d="M40 28 Q37 22 40 16" stroke="#92400e" strokeWidth="1.8" strokeLinecap="round" fill="none">
+                      <animate attributeName="opacity" values="0;1;0" dur="2s" begin="0.6s" repeatCount="indefinite" />
+                    </path>
+                    <path d="M50 28 Q47 22 50 16" stroke="#92400e" strokeWidth="1.8" strokeLinecap="round" fill="none">
+                      <animate attributeName="opacity" values="0;1;0" dur="2s" begin="1.2s" repeatCount="indefinite" />
+                    </path>
+                  </svg>
+                  <Coffee size={30} className="text-amber-800 relative z-10" />
+                </div>
+                <div className="absolute -bottom-1.5 -right-1.5 w-7 h-7 rounded-full bg-neutral-900 border-2 border-white flex items-center justify-center">
+                  <Lock size={12} className="text-white" />
+                </div>
+              </div>
+              <div className="space-y-2">
+                <h2 className="text-xl font-bold text-neutral-900 leading-tight tracking-tight">Inicia sesión para<br />continuar</h2>
+                <p className="text-sm text-neutral-500 leading-relaxed">Necesitas una cuenta para finalizar tu pedido. ¡Tu carrito te espera!</p>
+              </div>
+              <div className="flex items-center gap-3 w-full">
+                <div className="flex-1 h-px bg-neutral-100" />
+                <span className="text-xs text-neutral-300 font-medium">un momento</span>
+                <div className="flex-1 h-px bg-neutral-100" />
+              </div>
+              <div className="w-full space-y-2.5">
+                <button onClick={() => { setLoginAlert(false); setOpenAuth(true); }}
+                  className="w-full flex items-center justify-center gap-2 py-3.5 rounded-xl bg-neutral-900 text-white text-sm font-bold hover:bg-neutral-700 transition-all hover:-translate-y-0.5 hover:shadow-lg active:scale-[0.98]">
+                  Iniciar sesión / Registrarme <ArrowRight size={15} />
+                </button>
+                <button onClick={() => setLoginAlert(false)}
+                  className="w-full py-3 rounded-xl text-sm font-medium text-neutral-400 hover:text-neutral-600 hover:bg-neutral-50 transition-colors">
+                  Volver al carrito
+                </button>
+              </div>
+              <p className="text-xs text-neutral-300">Es gratis y toma menos de un minuto ☕</p>
+            </div>
+          </div>
+        </div>
+      )}
+
+      <ModalLoginRegister open={openAuth} onClose={() => setOpenAuth(false)} />
       <ProfileModal open={profileOpen} onClose={() => setProfileOpen(false)} />
     </>
   );

@@ -9,25 +9,22 @@ import Footer from './components/Footer'
 import CartDrawer from './components/CartDrawer'
 import Dashboard from './pages/Dashboard'
 import ResetPassword from './pages/ResetPassword'
+import { ProductProvider } from './context/Productcontext' // ← nuevo
 import { CartProvider } from './context/CartContext'
 import { UserProvider } from './context/UserContext'
 import FloatingSocialMenu from './components/FloatingSocialMenu'
 import CoffeeLoader from './components/Coffeeloader'
 
 export default function App() {
-  const [cartOpen, setCartOpen] = useState(false)
+  const [cartOpen, setCartOpen]     = useState(false)
   const [appLoading, setAppLoading] = useState(true)
 
   useEffect(() => {
-    // Espera a que la página esté completamente cargada
     const done = () => setAppLoading(false)
-
     if (document.readyState === 'complete') {
-      // Ya estaba lista (ej: HMR en dev)
       const t = setTimeout(done, 800)
       return () => clearTimeout(t)
     }
-
     window.addEventListener('load', done)
     return () => window.removeEventListener('load', done)
   }, [])
@@ -42,43 +39,41 @@ export default function App() {
 
   return (
     <UserProvider>
-      <CartProvider>
-        <div className="min-h-screen bg-white text-black">
+      <ProductProvider>      {/* ← envuelve CartProvider para que CartContext acceda al stockMap */}
+        <CartProvider>
+          <div className="min-h-screen bg-white text-black">
+            <Routes>
 
-          <Routes>
-            {/* TIENDA */}
-            <Route
-              path="/"
-              element={
-                <>
-                  <Navbar onCartToggle={() => setCartOpen(true)} />
-                  <main className="pt-20">
-                    <HeroCarousel />
-                    <ProductCarousel />
-                    <LocationsSection />
-                    <AboutSection />
-                    <FloatingSocialMenu
-                      whatsapp="573156643243"
-                      facebook="https://www.facebook.com/share/1HYt3R7zfo/?mibextid=wwXIfr"
-                      instagram="https://www.instagram.com/omarcarvajal.coffee?igsh=MThpZHhjb2Uxa202YQ=="
-                      tiktok="https://www.tiktok.com/@cheos_cafe?_r=1&_t=ZS-94CPj2kyOHN"
-                    />
-                  </main>
-                  <Footer />
-                  <CartDrawer open={cartOpen} onClose={() => setCartOpen(false)} />
-                </>
-              }
-            />
+              <Route
+                path="/"
+                element={
+                  <>
+                    <Navbar onCartToggle={() => setCartOpen(true)} />
+                    <main className="pt-20">
+                      <HeroCarousel />
+                      <ProductCarousel />
+                      <LocationsSection />
+                      <AboutSection />
+                      <FloatingSocialMenu
+                        whatsapp="573156643243"
+                        facebook="https://www.facebook.com/share/1HYt3R7zfo/?mibextid=wwXIfr"
+                        instagram="https://www.instagram.com/omarcarvajal.coffee?igsh=MThpZHhjb2Uxa202YQ=="
+                        tiktok="https://www.tiktok.com/@cheos_cafe?_r=1&_t=ZS-94CPj2kyOHN"
+                      />
+                    </main>
+                    <Footer />
+                    <CartDrawer open={cartOpen} onClose={() => setCartOpen(false)} />
+                  </>
+                }
+              />
 
-            {/* RESET PASSWORD */}
-            <Route path="/reset-password" element={<ResetPassword />} />
+              <Route path="/reset-password" element={<ResetPassword />} />
+              <Route path="/admin" element={<Dashboard />} />
 
-            {/* DASHBOARD */}
-            <Route path="/admin" element={<Dashboard />} />
-          </Routes>
-
-        </div>
-      </CartProvider>
+            </Routes>
+          </div>
+        </CartProvider>
+      </ProductProvider>
     </UserProvider>
   )
 }
