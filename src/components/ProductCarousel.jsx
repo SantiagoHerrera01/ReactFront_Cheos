@@ -1,5 +1,5 @@
 import React, { useEffect, useRef, useState } from 'react'
-import { getProducts } from '../routes/products'
+import { useProducts } from '../context/Productcontext'
 import { useUser } from '../context/UserContext'
 import { useAlert } from '../context/AlertContext'
 import ProductCard from './ProductCard'
@@ -9,84 +9,49 @@ import CoffeeLoader from './Coffeeloader'
 import { ChevronLeft, ChevronRight } from 'lucide-react'
 
 export default function ProductCarousel() {
-  const API_BASE = import.meta.env.VITE_API_URL || "http://localhost:8080/api/v1"
-  const [products, setProducts] = useState([])
-  const [loading, setLoading] = useState(true)
-  const [addOpen, setAddOpen] = useState(false)
+  const API_BASE = import.meta.env.VITE_API_URL || 'http://localhost:8080/api/v1'
+
+  const { products, loading, loadProducts } = useProducts()
+
+  const [addOpen, setAddOpen]         = useState(false)
   const [editProduct, setEditProduct] = useState(null)
-  const [canScroll, setCanScroll] = useState(false)
+  const [canScroll, setCanScroll]     = useState(false)
+  const carouselRef                   = useRef(null)
 
-  const carouselRef = useRef(null)
-
-  const { user, token } = useUser()
+  const { user, token }              = useUser()
   const { successToast, errorAlert } = useAlert()
-  const isAdmin = user?.role === 'ADMIN'
+  const isAdmin                      = user?.role === 'ADMIN'
 
-  const loadProducts = async () => {
-    setLoading(true)
-    try {
-      const data = await getProducts()
-
-      let arr = []
-      if (Array.isArray(data)) arr = data
-      else if (Array.isArray(data.products)) arr = data.products
-      else if (Array.isArray(data.data)) arr = data.data
-      else if (Array.isArray(data.data?.products)) arr = data.data.products
-      else if (data && typeof data === 'object') arr = Object.values(data)
-
-      setProducts(arr)
-    } catch (err) {
-      console.error('Error cargando productos:', err)
-    } finally {
-      setLoading(false)
-    }
-  }
-
-  useEffect(() => {
-    loadProducts()
-  }, [])
-
+  // El contexto ya carga los productos al montar — aquí solo
+  // escuchamos cambios de tamaño para el scroll del carousel
   useEffect(() => {
     const container = carouselRef.current
     if (!container) return
-
-    const checkOverflow = () => {
-      setCanScroll(container.scrollWidth > container.clientWidth)
-    }
-
-    checkOverflow()
-    window.addEventListener('resize', checkOverflow)
-    return () => window.removeEventListener('resize', checkOverflow)
+    const check = () => setCanScroll(container.scrollWidth > container.clientWidth)
+    check()
+    window.addEventListener('resize', check)
+    return () => window.removeEventListener('resize', check)
   }, [products, isAdmin])
 
   const handleDelete = async (id) => {
     try {
       const res = await fetch(`${API_BASE}/products/${id}`, {
         method: 'DELETE',
-        headers: { Authorization: `Bearer ${token}` }
+        headers: { Authorization: `Bearer ${token}` },
       })
-
-      if (!res.ok) {
-        errorAlert('Error eliminando el producto')
-        return
-      }
-
+      if (!res.ok) { errorAlert('Error eliminando el producto'); return }
       successToast('Producto eliminado')
       loadProducts()
-    } catch (e) {
+    } catch {
       errorAlert('No se pudo eliminar')
     }
   }
 
   const scroll = (dir) => {
     if (!canScroll) return
-    const container = carouselRef.current
-    if (!container) return
-    container.scrollTo({
-      left: dir === 'left'
-        ? container.scrollLeft - 280
-        : container.scrollLeft + 280,
-      behavior: 'smooth'
+    carouselRef.current?.scrollTo({
+      left: carouselRef.current.scrollLeft + (dir === 'left' ? -280 : 280),
+      behavior: 'smooth',
     })
   }
 
@@ -114,7 +79,7 @@ export default function ProductCarousel() {
                   <p className="text-coffee font-medium">Agregar producto</p>
                 </div>
               )}
-              {products.map((p) => (
+              {products.map(p => (
                 <ProductCard
                   key={p.id}
                   product={p}
@@ -138,10 +103,7 @@ export default function ProductCarousel() {
                 </button>
               )}
 
-              <div
-                ref={carouselRef}
-                className="flex gap-6 overflow-x-hidden w-full py-2"
-              >
+              <div ref={carouselRef} className="flex gap-6 overflow-x-hidden w-full py-2">
                 {isAdmin && (
                   <div
                     onClick={() => setAddOpen(true)}
@@ -154,7 +116,7 @@ export default function ProductCarousel() {
                     <p className="text-coffee font-medium">Agregar producto</p>
                   </div>
                 )}
-                {products.map((p) => (
+                {products.map(p => (
                   <ProductCard
                     key={p.id}
                     product={p}

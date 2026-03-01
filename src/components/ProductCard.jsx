@@ -5,38 +5,45 @@ import { useAlert } from '../context/AlertContext'
 import { Pencil, Trash2, Star } from 'lucide-react'
 
 export default function ProductCard({ product, onOpenCart, onEdit, onDelete }) {
-  const { addToCart } = useCart()
+  const { addToCart, cart } = useCart()
   const { user } = useUser()
-  const { confirmDelete, successToast } = useAlert()
+  const { confirmDelete, successToast, errorAlert } = useAlert()
   const isAdmin = user?.role === 'ADMIN'
 
   const [rating, setRating] = useState(0)
 
   const isOutOfStock = product.stock === 0
-  const isLowStock =
-    product.stock !== undefined &&
-    product.stock <= 10 &&
-    product.stock > 0
+  const isLowStock = product.stock !== undefined && product.stock <= 10 && product.stock > 0
 
-  const formatPrice = (value) => {
-    return new Intl.NumberFormat('es-CO', {
+  // Unidades que el usuario ya tiene en el carrito para este producto
+  const inCart = cart.find(i => i.id === product.id)?.quantity ?? 0
+  const isMaxReached = product.stock !== undefined && inCart >= product.stock
+
+  const formatPrice = (value) =>
+    new Intl.NumberFormat('es-CO', {
       style: 'currency',
       currency: 'COP',
-      minimumFractionDigits: 0
+      minimumFractionDigits: 0,
     }).format(value)
-  }
 
   const handleAdd = () => {
     if (isOutOfStock) return
-    addToCart(product)
-    successToast(`${product.name} agregado al carrito 🛒`)
-    if (onOpenCart) onOpenCart()
+
+    if (isMaxReached) {
+      errorAlert(
+        `Solo hay ${product.stock} unidad${product.stock === 1 ? '' : 'es'} disponible${product.stock === 1 ? '' : 's'} de "${product.name}" y ya las tienes todas en tu carrito.`
+      )
+      return
+    }
+
+    const added = addToCart(product)
+    if (added) {
+      successToast(`${product.name} agregado al carrito 🛒`)
+      if (onOpenCart) onOpenCart()
+    }
   }
 
-  const handleEdit = () => {
-    if (!onEdit) return
-    onEdit(product)
-  }
+  const handleEdit = () => onEdit?.(product)
 
   const handleDelete = async () => {
     const ok = await confirmDelete(product.name)
@@ -44,32 +51,37 @@ export default function ProductCard({ product, onOpenCart, onEdit, onDelete }) {
     onDelete?.(product.id)
   }
 
+  const buttonDisabled = isOutOfStock || isMaxReached
+
   return (
     <div
       className={`relative w-full md:w-[260px] h-auto md:h-[400px] bg-white rounded-2xl shadow-lg border border-gray-100 flex-shrink-0 hover:shadow-xl transition overflow-hidden ${
         isOutOfStock ? 'order-last' : ''
       }`}
     >
-      
       {/* Imagen */}
       <div className="relative h-44 w-full overflow-hidden">
         <img
           src={product.images?.[0] || product.image}
           alt={product.name}
-          className={`w-full h-full object-cover transition ${
-            isOutOfStock ? 'grayscale' : ''
-          }`}
+          className={`w-full h-full object-cover transition ${isOutOfStock ? 'grayscale' : ''}`}
         />
 
         {isOutOfStock && (
           <div className="absolute inset-0 bg-black/50 flex items-center justify-center">
-            <span className="text-white font-bold text-sm tracking-wider">
-              PRODUCTO AGOTADO
+            <span className="text-white font-bold text-sm tracking-wider">PRODUCTO AGOTADO</span>
+          </div>
+        )}
+
+        {!isOutOfStock && isMaxReached && (
+          <div className="absolute inset-0 bg-black/45 flex items-center justify-center px-3 text-center">
+            <span className="text-white font-bold text-xs tracking-wide leading-snug">
+              YA TIENES EL MÁXIMO DISPONIBLE EN TU CARRITO
             </span>
           </div>
         )}
 
-        {isLowStock && (
+        {isLowStock && !isMaxReached && (
           <div className="absolute bottom-2 left-2 bg-red-600 text-white text-xs px-2 py-1 rounded-md shadow">
             Pocas unidades
           </div>
@@ -97,28 +109,19 @@ export default function ProductCard({ product, onOpenCart, onEdit, onDelete }) {
 
       {/* Contenido */}
       <div className="p-4 flex flex-col justify-between h-[calc(100%-176px)]">
-        
         <div className="overflow-hidden">
-
           <h3 className="font-bold text-black text-lg tracking-wide line-clamp-1 uppercase">
             {product.name}
           </h3>
 
           {(product.weight || product.category) && (
             <div className="flex justify-between text-base text-gray-700 mt-1">
-              
               {product.weight && (
-                <p>
-                  <span className="font-semibold">Peso:</span> {product.weight} g
-                </p>
+                <p><span className="font-semibold">Peso:</span> {product.weight} g</p>
               )}
-
               {product.category && (
-                <p>
-                  <span className="font-semibold">Tipo:</span> {product.category}
-                </p>
+                <p><span className="font-semibold">Tipo:</span> {product.category}</p>
               )}
-
             </div>
           )}
 
@@ -133,30 +136,25 @@ export default function ProductCard({ product, onOpenCart, onEdit, onDelete }) {
                 size={18}
                 onClick={() => setRating(star)}
                 className={`cursor-pointer transition ${
-                  star <= rating
-                    ? 'text-yellow-400 fill-yellow-400'
-                    : 'text-gray-300'
+                  star <= rating ? 'text-yellow-400 fill-yellow-400' : 'text-gray-300'
                 }`}
               />
             ))}
           </div>
-
         </div>
 
         <div className="mt-3 flex items-center justify-between">
-          <span className="text-coffee font-bold text-lg">
-            {formatPrice(product.price)}
-          </span>
+          <span className="text-coffee font-bold text-lg">{formatPrice(product.price)}</span>
           <button
             onClick={handleAdd}
-            disabled={isOutOfStock}
+            disabled={buttonDisabled}
             className={`px-3 py-1.5 rounded-lg shadow-md transition-colors duration-200 text-white ${
-              isOutOfStock
+              buttonDisabled
                 ? 'bg-gray-400 cursor-not-allowed'
                 : 'bg-[#3b2f2f] hover:bg-[#5a4332]'
             }`}
           >
-            Agregar
+            {isMaxReached && !isOutOfStock ? 'Sin stock' : 'Agregar'}
           </button>
         </div>
       </div>

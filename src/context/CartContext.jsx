@@ -1,113 +1,176 @@
 import React, { createContext, useContext, useState, useEffect, useRef } from 'react'
 import { useUser } from './UserContext'
-import { getCart, addCartItem, updateCartItemQuantity, removeCartItem, clearCartAPI, syncCart } from '../routes/cart'
+import { useProducts } from './ProductContext'
+import {
+  getCart,
+  addCartItem,
+  updateCartItemQuantity,
+  removeCartItem,
+  clearCartAPI,
+  syncCart,
+} from '../routes/cart'
 
 const CartContext = createContext()
 
 export function CartProvider({ children }) {
-  const [cart, setCart] = useState([])
-  const { user, token } = useUser()
-  const prevUserRef = useRef(null)
+  const [cart, setCart]   = useState([])
+  const { user, token }   = useUser()
+  const { stockMap, loadProducts } = useProducts()  // ← ProductProvider ya envuelve esto
+  const prevUserRef       = useRef(null)
 
-  // Detectar login/logout
+  // ── Login / Logout ───────────────────────────────────────────────────────
   useEffect(() => {
     if (user && token && !prevUserRef.current) {
-      // Usuario acaba de loguearse: fusionar carrito
       mergeAndSyncCart()
     } else if (!user && prevUserRef.current) {
-      // Usuario cerró sesión: limpiar
       setCart([])
     }
     prevUserRef.current = user
   }, [user, token])
 
-  // Cargar carrito desde API
+  // ── Helpers ──────────────────────────────────────────────────────────────
+
+  /** Cruza items de la API con el stockMap. Si el mapa está vacío, lo recarga primero. */
+  const enrichWithStock = async (items) => {
+    let map = stockMap
+
+    if (map.size === 0) {
+      const fresh = await loadProducts()
+      map = new Map(fresh.map(p => [p.id, p.stock ?? Infinity]))
+    }
+
+    return items.map(item => ({
+      ...item,
+      stock: map.get(item.id) ?? item.stock,
+    }))
+  }
+
   const loadCartFromAPI = async () => {
     try {
-      const data = await getCart(token)
-      const items = (data.data?.items || []).map(item => ({
-        id: item.product_id,
-        name: item.product_name,
-        price: item.product_price,
-        image: item.product_image,
-        quantity: item.quantity
-      }))
+      const data  = await getCart(token)
+      const raw   = (data.data?.items || []).map(mapApiItem)
+      const items = await enrichWithStock(raw)
       setCart(items)
     } catch (err) {
-      console.error('Error cargando carrito:', err)
+      console.error('[CartContext] Error cargando carrito:', err)
     }
   }
 
-  // Fusionar carrito local con el guardado al hacer login
   const mergeAndSyncCart = async () => {
     try {
       if (cart.length > 0) {
-        // Hay items locales: sincronizar con la API
-        const localItems = cart.map(item => ({
-          product_id: item.id,
-          quantity: item.quantity
-        }))
-        const data = await syncCart(token, localItems)
-        const items = (data.data?.items || []).map(item => ({
-          id: item.product_id,
-          name: item.product_name,
-          price: item.product_price,
-          image: item.product_image,
-          quantity: item.quantity
-        }))
+        const localItems = cart.map(i => ({ product_id: i.id, quantity: i.quantity }))
+        const data  = await syncCart(token, localItems)
+        const raw   = (data.data?.items || []).map(mapApiItem)
+        const items = await enrichWithStock(raw)
         setCart(items)
       } else {
-        // Sin items locales: cargar el guardado
         await loadCartFromAPI()
       }
     } catch (err) {
-      console.error('Error sincronizando carrito:', err)
+      console.error('[CartContext] Error sincronizando carrito:', err)
     }
   }
 
+  // ── Operaciones ──────────────────────────────────────────────────────────
+
   const addToCart = (product) => {
-    // Optimistic update local
+    const available = stockMap.get(product.id) ?? product.stock
+    let allowed = true
+
     setCart(prev => {
-      const ex = prev.find(p => p.id === product.id)
-      if (ex) return prev.map(p => p.id === product.id ? { ...p, quantity: p.quantity + 1 } : p)
-      return [...prev, { ...product, quantity: 1 }]
+      const existing   = prev.find(p => p.id === product.id)
+      const currentQty = existing?.quantity ?? 0
+
+      if (available !== undefined && currentQty >= available) {
+        allowed = false
+        return prev
+      }
+
+      if (existing) {
+        return prev.map(p =>
+          p.id === product.id ? { ...p, quantity: p.quantity + 1 } : p
+        )
+      }
+
+      return [...prev, { ...product, stock: available, quantity: 1 }]
     })
 
-    // Sync con API en background si está logueado
-    if (user && token) {
-      addCartItem(token, product.id, 1).catch(err => console.error('Error sync addToCart:', err))
+    if (allowed && user && token) {
+      addCartItem(token, product.id, 1).catch(err =>
+        console.error('[CartContext] Error sync addToCart:', err)
+      )
     }
+
+    return allowed
   }
 
   const removeFromCart = (id) => {
     setCart(prev => prev.filter(p => p.id !== id))
-
     if (user && token) {
-      removeCartItem(token, id).catch(err => console.error('Error sync removeFromCart:', err))
+      removeCartItem(token, id).catch(err =>
+        console.error('[CartContext] Error sync removeFromCart:', err)
+      )
     }
   }
 
   const updateQuantity = (id, qty) => {
-    setCart(prev => prev.map(p => p.id === id ? { ...p, quantity: qty } : p))
+    setCart(prev => {
+      const item = prev.find(p => p.id === id)
+      if (!item) return prev
 
-    if (user && token) {
-      updateCartItemQuantity(token, id, qty).catch(err => console.error('Error sync updateQuantity:', err))
-    }
+      const available = stockMap.get(id) ?? item.stock
+      const clamped   = Math.max(1, available !== undefined ? Math.min(qty, available) : qty)
+
+      if (user && token) {
+        updateCartItemQuantity(token, id, clamped).catch(err =>
+          console.error('[CartContext] Error sync updateQuantity:', err)
+        )
+      }
+
+      return prev.map(p => p.id === id ? { ...p, quantity: clamped } : p)
+    })
   }
 
   const clearCart = () => {
     setCart([])
-
     if (user && token) {
-      clearCartAPI(token).catch(err => console.error('Error sync clearCart:', err))
+      clearCartAPI(token).catch(err =>
+        console.error('[CartContext] Error sync clearCart:', err)
+      )
     }
   }
 
+  /** Llamar tras orden exitosa: limpia carrito + refresca stocks del catálogo. */
+  const onOrderSuccess = () => {
+    clearCart()
+    loadProducts()
+  }
+
   return (
-    <CartContext.Provider value={{ cart, addToCart, removeFromCart, updateQuantity, clearCart }}>
+    <CartContext.Provider value={{
+      cart,
+      addToCart,
+      removeFromCart,
+      updateQuantity,
+      clearCart,
+      onOrderSuccess,
+    }}>
       {children}
     </CartContext.Provider>
   )
 }
 
 export const useCart = () => useContext(CartContext)
+
+// ── Utilidad interna ─────────────────────────────────────────────────────────
+function mapApiItem(item) {
+  return {
+    id:       item.product_id,
+    name:     item.product_name,
+    price:    item.product_price,
+    image:    item.product_image,
+    quantity: item.quantity,
+    // stock se inyecta después via enrichWithStock
+  }
+}
