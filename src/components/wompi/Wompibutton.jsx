@@ -2,7 +2,7 @@ import { useState, useEffect } from "react"
 import { getWompiSignature } from "../../routes/wompi"
 import { Lock } from "lucide-react"
 
-const CHECKOUT_URL = "https://checkout.wompi.co/p"
+const CHECKOUT_URL = "https://checkout.wompi.co/p/"
 
 export default function WompiButton({
   amountInCents,
@@ -15,8 +15,6 @@ export default function WompiButton({
   const [loading,   setLoading]   = useState(true)
   const [error,     setError]     = useState(null)
 
-  // ✅ Leídas dentro del componente para evitar que queden
-  // congeladas como undefined en el bundle de Netlify
   const wompiEnv  = import.meta.env.VITE_WOMPI_ENV || "sandbox"
   const publicKey = wompiEnv === "production"
     ? import.meta.env.VITE_WOMPI_PUBLIC_KEY_PROD
@@ -25,13 +23,11 @@ export default function WompiButton({
   const finalRedirectUrl = "https://cheoscafe.netlify.app/pago-exitoso"
 
   useEffect(() => {
-    // Guard: si no hay llave, mostrar error inmediatamente
     if (!publicKey) {
-      setError("Llave pública de Wompi no configurada. Contacta al administrador.")
+      setError("Llave pública de Wompi no configurada.")
       setLoading(false)
       return
     }
-
     if (!amountInCents || !reference) return
 
     setLoading(true)
@@ -49,20 +45,19 @@ export default function WompiButton({
 
     const safeAmount = Math.round(Number(amountInCents))
 
-    const params = new URLSearchParams({
-      "public-key":          publicKey,
-      "currency":            currency,
-      "amount-in-cents":     String(safeAmount),
-      "reference":           reference,
-      "signature:integrity": signature,
-      "redirect-url":        finalRedirectUrl,
-    })
+    // ✅ URL construida manualmente — evita que URLSearchParams
+    // codifique caracteres que el SDK de Wompi no puede leer
+    const url = `${CHECKOUT_URL}` +
+      `?public-key=${publicKey}` +
+      `&currency=${currency}` +
+      `&amount-in-cents=${safeAmount}` +
+      `&reference=${reference}` +
+      `&signature:integrity=${signature}` +
+      `&redirect-url=${encodeURIComponent(finalRedirectUrl)}` +
+      (customerEmail ? `&customer-data:email=${encodeURIComponent(customerEmail)}` : "")
 
-    if (customerEmail) {
-      params.set("customer-data:email", customerEmail)
-    }
-
-    window.location.href = `${CHECKOUT_URL}?${params.toString()}`
+    console.log("Wompi URL:", url)
+    window.location.href = url
   }
 
   if (error) {
