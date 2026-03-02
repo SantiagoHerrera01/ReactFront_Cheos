@@ -2,11 +2,6 @@ import { useState, useEffect } from "react"
 import { getWompiSignature } from "../../routes/wompi"
 import { Lock } from "lucide-react"
 
-const WOMPI_ENV  = import.meta.env.VITE_WOMPI_ENV || "sandbox"
-const PUBLIC_KEY = WOMPI_ENV === "production"
-  ? import.meta.env.VITE_WOMPI_PUBLIC_KEY_PROD
-  : import.meta.env.VITE_WOMPI_PUBLIC_KEY_SANDBOX
-
 const CHECKOUT_URL = "https://checkout.wompi.co/p"
 
 export default function WompiButton({
@@ -14,17 +9,31 @@ export default function WompiButton({
   currency = "COP",
   reference,
   customerEmail = "",
-  redirectUrl,
   onError,
 }) {
   const [signature, setSignature] = useState(null)
   const [loading,   setLoading]   = useState(true)
   const [error,     setError]     = useState(null)
 
-const finalRedirectUrl = "https://cheoscafe.netlify.app/pago-exitoso"
+  // ✅ Leídas dentro del componente para evitar que queden
+  // congeladas como undefined en el bundle de Netlify
+  const wompiEnv  = import.meta.env.VITE_WOMPI_ENV || "sandbox"
+  const publicKey = wompiEnv === "production"
+    ? import.meta.env.VITE_WOMPI_PUBLIC_KEY_PROD
+    : import.meta.env.VITE_WOMPI_PUBLIC_KEY_SANDBOX
+
+  const finalRedirectUrl = "https://cheoscafe.netlify.app/pago-exitoso"
 
   useEffect(() => {
+    // Guard: si no hay llave, mostrar error inmediatamente
+    if (!publicKey) {
+      setError("Llave pública de Wompi no configurada. Contacta al administrador.")
+      setLoading(false)
+      return
+    }
+
     if (!amountInCents || !reference) return
+
     setLoading(true)
     setError(null)
 
@@ -33,20 +42,20 @@ const finalRedirectUrl = "https://cheoscafe.netlify.app/pago-exitoso"
     getWompiSignature({ reference, amount_in_cents: safeAmount, currency })
       .then((data) => { setSignature(data.signature); setLoading(false) })
       .catch((err)  => { setError(err.message || "Error generando firma"); setLoading(false); onError?.(err) })
-  }, [amountInCents, reference, currency])
+  }, [amountInCents, reference, currency, publicKey])
 
   const handlePay = () => {
-    if (!signature) return
+    if (!signature || !publicKey) return
 
     const safeAmount = Math.round(Number(amountInCents))
 
     const params = new URLSearchParams({
-      "public-key":           PUBLIC_KEY,
-      "currency":             currency,
-      "amount-in-cents":      String(safeAmount),
-      "reference":            reference,
-      "signature:integrity":  signature,
-      "redirect-url":         finalRedirectUrl,
+      "public-key":          publicKey,
+      "currency":            currency,
+      "amount-in-cents":     String(safeAmount),
+      "reference":           reference,
+      "signature:integrity": signature,
+      "redirect-url":        finalRedirectUrl,
     })
 
     if (customerEmail) {

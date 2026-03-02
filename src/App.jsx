@@ -10,7 +10,7 @@ import CartDrawer from './components/CartDrawer'
 import Dashboard from './pages/Dashboard'
 import ResetPassword from './pages/ResetPassword'
 import PaymentSuccess from './components/wompi/PaymentSuccess' // ✅ NEW
-import { ProductProvider } from './context/Productcontext'
+import { ProductProvider } from './context/ProductContext'
 import { CartProvider } from './context/CartContext'
 import { UserProvider } from './context/UserContext'
 import FloatingSocialMenu from './components/FloatingSocialMenu'
