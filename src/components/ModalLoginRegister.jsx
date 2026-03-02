@@ -232,19 +232,20 @@ export default function ModalLoginRegister({ open, onClose }) {
               </form>
             )}
 
-            <p className="mt-4 text-center text-sm">
-              <button
-                onClick={() => {
-                  setMode('login')
-                  setForgotError('')
-                  setForgotSuccess(false)
-                  setForgotEmail('')
-                }}
-                className="font-semibold text-coffee hover:underline"
-              >
-                Volver a iniciar sesión
-              </button>
-            </p>
+            {!forgotSuccess && (
+              <p className="mt-4 text-center text-sm">
+                <button
+                  onClick={() => {
+                    setMode('login')
+                    setForgotError('')
+                    setForgotEmail('')
+                  }}
+                  className="font-semibold text-coffee hover:underline"
+                >
+                  Volver a iniciar sesión
+                </button>
+              </p>
+            )}
           </>
         ) : (
           <>
