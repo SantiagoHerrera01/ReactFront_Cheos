@@ -486,7 +486,7 @@ export default function CartDrawer({ open, onClose, onOpenProfile }) {
               </div>
               <div className="flex items-center gap-3 w-full">
                 <div className="flex-1 h-px bg-neutral-100" />
-                <span className="text-xs text-neutral-300 font-medium">un momento</span>
+                <span className="text-xs text-neutral-500 font-medium">un momento</span>
                 <div className="flex-1 h-px bg-neutral-100" />
               </div>
               <div className="w-full space-y-2.5">
@@ -499,7 +499,7 @@ export default function CartDrawer({ open, onClose, onOpenProfile }) {
                   Volver al carrito
                 </button>
               </div>
-              <p className="text-xs text-neutral-300">Es gratis y toma menos de un minuto ☕</p>
+              <p className="text-xs text-neutral-500">Es gratis y toma menos de un minuto ☕</p>
             </div>
           </div>
         </div>
