@@ -5,8 +5,9 @@ import { useAlert } from "../context/AlertContext";
 import { createOrder } from "../routes/orders";
 import ModalLoginRegister from "./ModalLoginRegister";
 import ProfileModal from "./ProfileModal";
+import WompiButton from "./wompi/Wompibutton";
 import {
-  X, Trash2, Minus, Plus, CreditCard, Truck,
+  X, Trash2, Minus, Plus, Truck,
   Tag, ShoppingBag, ArrowRight, Coffee, Lock, AlertTriangle,
 } from "lucide-react";
 
@@ -36,6 +37,13 @@ const FIELD_LABELS = {
   city:         "Dirección",
   birth_date:   "Fecha de nacimiento",
 };
+
+function generateWompiReference(userId) {
+  const ts  = Date.now();
+  const rnd = Math.random().toString(36).substring(2, 6).toUpperCase();
+  const uid = userId ? userId.slice(-4).toUpperCase() : "GUST";
+  return `CHEOS-${uid}-${ts}-${rnd}`;
+}
 
 /* ── Café procesando pedido ── */
 function CoffeeLoader() {
@@ -151,13 +159,8 @@ function OutOfStockAlert({ productName, onRemove, onClose }) {
           <div className="space-y-2">
             <h2 className="text-xl font-bold text-neutral-900 leading-tight tracking-tight">Producto agotado</h2>
             <p className="text-sm text-neutral-500 leading-relaxed">
-              <span className="font-semibold text-neutral-700">"{productName}"</span> se agotó justo antes de procesar tu pedido. Necesitas retirarlo para continuar.
+              <span className="font-semibold text-neutral-700">"{productName}"</span> se agotó justo antes de procesar tu pedido.
             </p>
-          </div>
-          <div className="flex items-center gap-3 w-full">
-            <div className="flex-1 h-px bg-neutral-100" />
-            <span className="text-xs text-neutral-300 font-medium">¿qué hacemos?</span>
-            <div className="flex-1 h-px bg-neutral-100" />
           </div>
           <div className="w-full space-y-2.5">
             <button onClick={onRemove} className="w-full flex items-center justify-center gap-2 py-3.5 rounded-xl bg-red-500 text-white text-sm font-bold hover:bg-red-600 transition-all hover:-translate-y-0.5 hover:shadow-lg active:scale-[0.98]">
@@ -167,7 +170,6 @@ function OutOfStockAlert({ productName, onRemove, onClose }) {
               Volver al carrito
             </button>
           </div>
-          <p className="text-xs text-neutral-300">Tus demás productos siguen en el carrito ☕</p>
         </div>
       </div>
     </div>
@@ -175,7 +177,6 @@ function OutOfStockAlert({ productName, onRemove, onClose }) {
 }
 
 export default function CartDrawer({ open, onClose, onOpenProfile }) {
-  // ← onOrderSuccess reemplaza clearCart: limpia carrito + refresca catálogo
   const { cart = [], removeFromCart, updateQuantity, onOrderSuccess } = useCart();
   const { user, token } = useUser();
   const { successToast, errorAlert } = useAlert();
@@ -192,12 +193,20 @@ export default function CartDrawer({ open, onClose, onOpenProfile }) {
   const [loginAlert, setLoginAlert]           = useState(false);
   const [outOfStockAlert, setOutOfStockAlert] = useState(null);
 
+  const [wompiReference, setWompiReference]   = useState(null);
+  const [wompiStep, setWompiStep]             = useState(false);
+
   const missingFields = user ? getIncompleteFields(user) : [];
   const isBlocked     = user && missingFields.length > 0;
 
   const subtotal   = useMemo(() => cart.reduce((s, i) => s + (Number(i.price) || 0) * (i.quantity || 0), 0), [cart]);
   const total      = Math.max(0, subtotal - discountAmount);
   const totalItems = cart.reduce((n, i) => n + i.quantity, 0);
+
+  useEffect(() => {
+    setWompiStep(false);
+    setWompiReference(null);
+  }, [paymentMethod]);
 
   const validateDiscount = async (code = discountCode) => {
     if (!code.trim() || cart.length === 0) return;
@@ -247,12 +256,13 @@ export default function CartDrawer({ open, onClose, onOpenProfile }) {
     })();
   }, [subtotal]);
 
+  // ── CONTRA_ENTREGA: crea la orden de inmediato ──
   async function doCheckout() {
     const payload = {
       customer_name:  user?.name  || "",
       customer_email: user?.email || "",
       customer_phone: user?.phone || "",
-      payment_method: paymentMethod,
+      payment_method: "CONTRA_ENTREGA",
       shipping_address: {
         street:     user?.city         || "",
         number:     user?.neighborhood || "",
@@ -268,16 +278,10 @@ export default function CartDrawer({ open, onClose, onOpenProfile }) {
     setLoading(true);
     try {
       await createOrder(payload, token);
-
-      // Limpia carrito Y refresca el catálogo en un solo paso
       onOrderSuccess();
       setDiscountAmount(0); setDiscountData(null); setDiscountCode("");
       setLoading(false);
-      successToast(
-        paymentMethod === "TRANSFERENCIA"
-          ? "Pedido creado. Envíanos el comprobante 📎"
-          : "Pedido creado. Pagarás contra entrega 🚚"
-      );
+      successToast("Pedido creado. Pagarás contra entrega 🚚");
       onClose();
     } catch (e) {
       setLoading(false);
@@ -291,6 +295,47 @@ export default function CartDrawer({ open, onClose, onOpenProfile }) {
       }
       errorAlert(errorMsg || "Error al crear el pedido");
     }
+  }
+
+  // ── WOMPI: guarda el pedido pendiente en sessionStorage y muestra el widget ──
+  // La orden se crea en /pago-exitoso SOLO si Wompi confirma el pago
+  function handleWompiCheckout() {
+    if (!user || !token) { setLoginAlert(true); return; }
+    if (isBlocked) return;
+    if (cart.length === 0) return;
+
+    const ref = generateWompiReference(user?.id);
+
+    const pendingOrder = {
+      customer_name:  user?.name  || "",
+      customer_email: user?.email || "",
+      customer_phone: user?.phone || "",
+      payment_method: "WOMPI",
+      shipping_address: {
+        street:     user?.city         || "",
+        number:     user?.neighborhood || "",
+        city:       user?.municipality || "",
+        department: "",
+        zip_code:   "",
+        details:    "",
+      },
+      items: cart.map(i => ({ product_id: i.id, quantity: i.quantity })),
+      ...(discountData?.code ? { discount_code: discountData.code } : {}),
+    };
+
+    // Persistir en sessionStorage para recuperarlo después del redirect de Wompi
+    sessionStorage.setItem("wompi_pending_order", JSON.stringify(pendingOrder));
+    sessionStorage.setItem("wompi_token", token);
+
+    setWompiReference(ref);
+    setWompiStep(true);
+  }
+
+  function cancelWompiStep() {
+    setWompiStep(false);
+    setWompiReference(null);
+    sessionStorage.removeItem("wompi_pending_order");
+    sessionStorage.removeItem("wompi_token");
   }
 
   async function checkout() {
@@ -323,8 +368,15 @@ export default function CartDrawer({ open, onClose, onOpenProfile }) {
         {/* Header */}
         <div className="flex items-center justify-between px-5 py-4 border-b border-neutral-100 flex-shrink-0 bg-white">
           <div className="flex items-center gap-2.5">
-            <h3 className="text-lg font-bold text-neutral-900">Tu Carrito</h3>
-            {totalItems > 0 && (
+            {wompiStep && (
+              <button onClick={cancelWompiStep} className="text-neutral-400 hover:text-neutral-700 mr-1 transition-colors">
+                ←
+              </button>
+            )}
+            <h3 className="text-lg font-bold text-neutral-900">
+              {wompiStep ? "Completar pago" : "Tu Carrito"}
+            </h3>
+            {totalItems > 0 && !wompiStep && (
               <span className="bg-neutral-900 text-white text-[10px] font-bold w-5 h-5 rounded-full flex items-center justify-center">
                 {totalItems}
               </span>
@@ -339,6 +391,48 @@ export default function CartDrawer({ open, onClose, onOpenProfile }) {
           <div className="flex-1 flex items-center justify-center"><CoffeeLoader /></div>
         ) : isBlocked ? (
           <SadCoffeeBlock missingFields={missingFields} onGoToProfile={() => { onClose(); setProfileOpen(true); if (onOpenProfile) onOpenProfile(); }} />
+
+        ) : wompiStep ? (
+          // ── Panel previo al redirect de Wompi ──
+          // NO se crea la orden aquí. El usuario es redirigido a Wompi,
+          // y al volver a /pago-exitoso se crea la orden si el pago fue aprobado.
+          <div className="flex-1 flex flex-col px-5 py-6 gap-5">
+            <div className="bg-neutral-50 rounded-xl border border-neutral-100 px-4 py-3 space-y-1.5">
+              <p className="text-xs font-semibold text-neutral-400 uppercase tracking-widest mb-2">Resumen</p>
+              {cart.map(item => (
+                <div key={item.id} className="flex justify-between text-sm">
+                  <span className="text-neutral-600">{item.quantity}× {item.name}</span>
+                  <span className="font-medium text-neutral-800">{formatPrice(item.price * item.quantity)}</span>
+                </div>
+              ))}
+              {discountAmount > 0 && (
+                <div className="flex justify-between text-sm font-medium text-emerald-600 pt-1 border-t border-dashed border-neutral-200">
+                  <span>Descuento</span>
+                  <span>− {formatPrice(discountAmount)}</span>
+                </div>
+              )}
+              <div className="flex justify-between font-bold text-neutral-900 pt-1 border-t border-neutral-200">
+                <span>Total</span>
+                <span>{formatPrice(total)}</span>
+              </div>
+            </div>
+
+            <div className="flex flex-col items-center gap-3">
+              <p className="text-sm text-neutral-500 text-center">
+                Paga de forma segura con tarjeta, PSE, Nequi, Bancolombia y más
+              </p>
+              <WompiButton
+                amountInCents={total * 100}
+                currency="COP"
+                reference={wompiReference}
+                customerEmail={user?.email || ""}
+              />
+              <p className="text-xs text-neutral-300 flex items-center gap-1">
+                🔒 Serás redirigido a Wompi para completar el pago
+              </p>
+            </div>
+          </div>
+
         ) : (
           <>
             {cart.length === 0 ? (
@@ -383,8 +477,8 @@ export default function CartDrawer({ open, onClose, onOpenProfile }) {
               </div>
             )}
 
-            {/* Footer */}
             <div className="flex-shrink-0 border-t border-neutral-100 bg-neutral-50 px-4 py-4 space-y-4">
+              {/* Código de descuento */}
               <div className="space-y-1.5">
                 <div className="flex gap-2">
                   <input
@@ -404,21 +498,29 @@ export default function CartDrawer({ open, onClose, onOpenProfile }) {
                 )}
               </div>
 
+              {/* Método de pago */}
               <div className="space-y-2">
                 <p className="text-xs font-semibold text-neutral-400 uppercase tracking-widest">Método de pago</p>
                 <div className="grid grid-cols-2 gap-2">
                   {[
-                    { value: "CONTRA_ENTREGA", label: "Contra entrega", icon: Truck },
-                    { value: "TRANSFERENCIA",  label: "Transferencia",  icon: CreditCard },
+                    { value: "CONTRA_ENTREGA", label: "Contraentrega", icon: Truck },
+                    { value: "WOMPI",          label: "Pagar online",  icon: Lock  },
                   ].map(({ value, label, icon: Icon }) => (
                     <button key={value} onClick={() => setPaymentMethod(value)}
-                      className={`flex items-center gap-2 p-3 rounded-xl border text-sm font-medium transition-all ${paymentMethod === value ? "border-neutral-900 bg-neutral-900 text-white" : "border-neutral-200 bg-white text-neutral-600 hover:border-neutral-400"}`}>
-                      <Icon size={14} />{label}
+                      className={`flex flex-col items-center gap-1.5 p-3 rounded-xl border text-xs font-medium transition-all ${paymentMethod === value ? "border-neutral-900 bg-neutral-900 text-white" : "border-neutral-200 bg-white text-neutral-600 hover:border-neutral-400"}`}>
+                      <Icon size={15} />
+                      <span className="text-center leading-tight">{label}</span>
                     </button>
                   ))}
                 </div>
+                {paymentMethod === "WOMPI" && (
+                  <p className="text-xs text-neutral-400 text-center">
+                    💳 Tarjeta, PSE, Nequi, Bancolombia, transferencias y más
+                  </p>
+                )}
               </div>
 
+              {/* Totales */}
               <div className="space-y-1.5">
                 <div className="flex justify-between text-sm text-neutral-500">
                   <span>Subtotal</span><span>{formatPrice(subtotal)}</span>
@@ -435,10 +537,24 @@ export default function CartDrawer({ open, onClose, onOpenProfile }) {
                 </div>
               </div>
 
-              <button onClick={checkout} disabled={!cart.length}
-                className="w-full py-3.5 rounded-xl text-sm font-bold text-white bg-neutral-900 hover:bg-neutral-700 disabled:bg-neutral-300 disabled:cursor-not-allowed transition-all hover:-translate-y-0.5 hover:shadow-lg active:translate-y-0">
-                Finalizar compra →
-              </button>
+              {/* Botón de acción */}
+              {paymentMethod === "WOMPI" ? (
+                <button
+                  onClick={handleWompiCheckout}
+                  disabled={!cart.length}
+                  className="w-full py-3.5 rounded-xl text-sm font-bold text-white bg-neutral-900 hover:bg-neutral-700 disabled:bg-neutral-300 disabled:cursor-not-allowed transition-all hover:-translate-y-0.5 hover:shadow-lg active:translate-y-0 flex items-center justify-center gap-2"
+                >
+                  <Lock size={14} /> Continuar al pago →
+                </button>
+              ) : (
+                <button
+                  onClick={checkout}
+                  disabled={!cart.length}
+                  className="w-full py-3.5 rounded-xl text-sm font-bold text-white bg-neutral-900 hover:bg-neutral-700 disabled:bg-neutral-300 disabled:cursor-not-allowed transition-all hover:-translate-y-0.5 hover:shadow-lg active:translate-y-0"
+                >
+                  Finalizar compra →
+                </button>
+              )}
             </div>
           </>
         )}
@@ -483,11 +599,6 @@ export default function CartDrawer({ open, onClose, onOpenProfile }) {
               <div className="space-y-2">
                 <h2 className="text-xl font-bold text-neutral-900 leading-tight tracking-tight">Inicia sesión para<br />continuar</h2>
                 <p className="text-sm text-neutral-500 leading-relaxed">Necesitas una cuenta para finalizar tu pedido. ¡Tu carrito te espera!</p>
-              </div>
-              <div className="flex items-center gap-3 w-full">
-                <div className="flex-1 h-px bg-neutral-100" />
-                <span className="text-xs text-neutral-300 font-medium">un momento</span>
-                <div className="flex-1 h-px bg-neutral-100" />
               </div>
               <div className="w-full space-y-2.5">
                 <button onClick={() => { setLoginAlert(false); setOpenAuth(true); }}
