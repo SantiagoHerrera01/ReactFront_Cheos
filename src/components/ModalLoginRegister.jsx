@@ -1,5 +1,5 @@
 import React, { useState } from 'react'
-import { X } from 'lucide-react'
+import { X, Eye, EyeOff } from 'lucide-react'
 import { useUser } from '../context/UserContext'
 import { useAlert } from '../context/AlertContext'
 
@@ -16,6 +16,7 @@ export default function ModalLoginRegister({ open, onClose }) {
     password: '',
     phone: '',
   })
+  const [showPassword, setShowPassword] = useState(false)
   const [errors, setErrors] = useState({})
   const [loading, setLoading] = useState(false)
   const [successMessage, setSuccessMessage] = useState('')
@@ -78,7 +79,6 @@ export default function ModalLoginRegister({ open, onClose }) {
     setForm({ ...form, [e.target.name]: e.target.value })
     setErrors({ ...errors, [e.target.name]: '' })
   }
-
 
   const handleSubmit = async e => {
     e.preventDefault()
@@ -307,13 +307,22 @@ export default function ModalLoginRegister({ open, onClose }) {
 
               <div>
                 <label className="text-sm">Contraseña</label>
-                <input
-                  type="password"
-                  name="password"
-                  value={form.password}
-                  onChange={handleChange}
-                  className={inputClass('password')}
-                />
+                <div className="relative">
+                  <input
+                    type={showPassword ? 'text' : 'password'}
+                    name="password"
+                    value={form.password}
+                    onChange={handleChange}
+                    className={`${inputClass('password')} pr-10`}
+                  />
+                  <button
+                    type="button"
+                    onClick={() => setShowPassword(prev => !prev)}
+                    className="absolute right-3 top-1/2 -translate-y-1/2 text-gray-400 hover:text-gray-600"
+                  >
+                    {showPassword ? <EyeOff className="h-4 w-4" /> : <Eye className="h-4 w-4" />}
+                  </button>
+                </div>
                 {errors.password && (
                   <p className="text-xs text-red-500">{errors.password}</p>
                 )}

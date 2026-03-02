@@ -544,7 +544,7 @@ export default function CartDrawer({ open, onClose, onOpenProfile }) {
                   disabled={!cart.length}
                   className="w-full py-3.5 rounded-xl text-sm font-bold text-white bg-neutral-900 hover:bg-neutral-700 disabled:bg-neutral-300 disabled:cursor-not-allowed transition-all hover:-translate-y-0.5 hover:shadow-lg active:translate-y-0 flex items-center justify-center gap-2"
                 >
-                  <Lock size={14} /> Continuar al pago →
+                  <Lock size={14} /> Continuar al pago
                 </button>
               ) : (
                 <button
@@ -610,7 +610,7 @@ export default function CartDrawer({ open, onClose, onOpenProfile }) {
                   Volver al carrito
                 </button>
               </div>
-              <p className="text-xs text-neutral-300">Es gratis y toma menos de un minuto ☕</p>
+              <p className="text-xs text-neutral-500">Es gratis y toma menos de un minuto ☕</p>
             </div>
           </div>
         </div>
