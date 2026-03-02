@@ -1,5 +1,5 @@
 import React, { useEffect, useRef, useState } from 'react'
-import { useProducts } from '../context/Productcontext'
+import { useProducts } from '../context/ProductContext'
 import { useUser } from '../context/UserContext'
 import { useAlert } from '../context/AlertContext'
 import ProductCard from './ProductCard'
