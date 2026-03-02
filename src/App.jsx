@@ -9,7 +9,8 @@ import Footer from './components/Footer'
 import CartDrawer from './components/CartDrawer'
 import Dashboard from './pages/Dashboard'
 import ResetPassword from './pages/ResetPassword'
-import { ProductProvider } from './context/Productcontext' // ← nuevo
+import PaymentSuccess from './components/wompi/PaymentSuccess' // ✅ NEW
+import { ProductProvider } from './context/Productcontext'
 import { CartProvider } from './context/CartContext'
 import { UserProvider } from './context/UserContext'
 import FloatingSocialMenu from './components/FloatingSocialMenu'
@@ -39,7 +40,7 @@ export default function App() {
 
   return (
     <UserProvider>
-      <ProductProvider>      {/* ← envuelve CartProvider para que CartContext acceda al stockMap */}
+      <ProductProvider>
         <CartProvider>
           <div className="min-h-screen bg-white text-black">
             <Routes>
@@ -69,6 +70,7 @@ export default function App() {
 
               <Route path="/reset-password" element={<ResetPassword />} />
               <Route path="/admin" element={<Dashboard />} />
+              <Route path="/pago-exitoso" element={<PaymentSuccess />} /> {/* ✅ NEW */}
 
             </Routes>
           </div>
