@@ -43,23 +43,21 @@ export default function BuyersPanel() {
   ]
 
   return (
-    <div className="space-y-5">
-
+    <div className="space-y-4 sm:space-y-5">
       <div className="grid grid-cols-2 xl:grid-cols-4 gap-3">
         {kpis.map(({ label, value, sub, cls }) => (
-          <div key={label} className="bg-white border border-gray-200 rounded-xl p-5 hover:border-gray-300 hover:shadow-sm transition-all">
+          <div key={label} className="bg-white border border-gray-200 rounded-xl p-4 sm:p-5 hover:border-gray-300 hover:shadow-sm transition-all">
             <p className="text-[9px] font-bold tracking-[0.14em] uppercase text-gray-400 mb-1">{label}</p>
-            <p className={`font-display font-bold text-3xl leading-tight mb-1 ${cls}`}>{value}</p>
+            <p className={`font-display font-bold text-2xl sm:text-3xl leading-tight mb-1 ${cls}`}>{value}</p>
             <p className="text-[11px] text-gray-400">{sub}</p>
           </div>
         ))}
       </div>
 
       <div className="grid grid-cols-1 lg:grid-cols-2 gap-4">
-
-        <div className="bg-white border border-gray-200 rounded-xl p-5 shadow-sm">
-          <div className="flex items-center gap-3 mb-5">
-            <h3 className="font-display font-bold text-base text-gray-900">Desglose — {monthName} {monthly?.year}</h3>
+        <div className="bg-white border border-gray-200 rounded-xl p-4 sm:p-5 shadow-sm">
+          <div className="flex items-center gap-3 mb-4 sm:mb-5">
+            <h3 className="font-display font-bold text-sm sm:text-base text-gray-900">Desglose — {monthName} {monthly?.year}</h3>
             <div className="flex-1 h-px bg-gray-100" />
           </div>
           <div className="divide-y divide-gray-100">
@@ -78,9 +76,9 @@ export default function BuyersPanel() {
           </div>
         </div>
 
-        <div className="bg-white border border-gray-200 rounded-xl p-5 shadow-sm">
-          <div className="flex items-center gap-3 mb-5">
-            <h3 className="font-display font-bold text-base text-gray-900">Resumen del año {yearly?.year}</h3>
+        <div className="bg-white border border-gray-200 rounded-xl p-4 sm:p-5 shadow-sm">
+          <div className="flex items-center gap-3 mb-4 sm:mb-5">
+            <h3 className="font-display font-bold text-sm sm:text-base text-gray-900">Resumen del año {yearly?.year}</h3>
             <div className="flex-1 h-px bg-gray-100" />
           </div>
           <div className="divide-y divide-gray-100">
@@ -95,7 +93,6 @@ export default function BuyersPanel() {
               </div>
             ))}
           </div>
-
           {yearly?.buyer_ids?.length > 0 && (
             <div className="mt-4">
               <p className="text-[9px] font-bold tracking-[0.14em] uppercase text-gray-400 mb-2">
