@@ -54,20 +54,20 @@ export default function SalesPanel() {
   const monthName = MONTHS[(monthly?.month ?? 1) - 1]
 
   const kpis = [
-    { label: 'Ingresos del mes',    value: fmt(monthly?.total_revenue),  sub: `${monthly?.total_orders ?? 0} pedidos`,        cls: 'text-emerald-600' },
-    { label: 'Ticket promedio',     value: fmt(monthly?.average_ticket), sub: 'por pedido',                                   cls: 'text-amber-600' },
-    { label: 'Ingresos del año',    value: fmt(yearly?.total_revenue),   sub: `${yearly?.total_orders ?? 0} pedidos`,         cls: 'text-blue-600' },
-    { label: 'Completados / Canc.', value: monthly?.completed_orders ?? '—', sub: `${monthly?.cancelled_orders ?? 0} cancelados`, cls: 'text-coffee' },
+    { label: 'Ingresos del mes',    value: fmt(monthly?.total_revenue),      sub: `${monthly?.total_orders ?? 0} pedidos`,         cls: 'text-emerald-600' },
+    { label: 'Ticket promedio',     value: fmt(monthly?.average_ticket),     sub: 'por pedido',                                    cls: 'text-amber-600' },
+    { label: 'Ingresos del año',    value: fmt(yearly?.total_revenue),       sub: `${yearly?.total_orders ?? 0} pedidos`,          cls: 'text-blue-600' },
+    { label: 'Completados / Canc.', value: monthly?.completed_orders ?? '—', sub: `${monthly?.cancelled_orders ?? 0} cancelados`,  cls: 'text-coffee' },
   ]
 
   return (
-    <div className="space-y-5">
+    <div className="space-y-4 sm:space-y-5">
 
       <div className="grid grid-cols-2 xl:grid-cols-4 gap-3">
         {kpis.map(({ label, value, sub, cls }) => (
-          <div key={label} className="bg-white border border-gray-200 rounded-xl p-5 hover:border-gray-300 hover:shadow-sm transition-all">
+          <div key={label} className="bg-white border border-gray-200 rounded-xl p-4 sm:p-5 hover:border-gray-300 hover:shadow-sm transition-all">
             <p className="text-[9px] font-bold tracking-[0.14em] uppercase text-gray-400 mb-1">{label}</p>
-            <p className={`font-display font-bold text-2xl leading-tight mb-1 ${cls}`}>{value}</p>
+            <p className={`font-display font-bold text-xl sm:text-2xl leading-tight mb-1 ${cls}`}>{value}</p>
             <p className="text-[11px] text-gray-400">{sub}</p>
           </div>
         ))}
@@ -75,13 +75,13 @@ export default function SalesPanel() {
 
       <div className="grid grid-cols-1 lg:grid-cols-2 gap-4">
 
-        <div className="bg-white border border-gray-200 rounded-xl p-5 shadow-sm">
-          <div className="flex items-center gap-3 mb-5">
-            <h3 className="font-display font-bold text-base text-gray-900">Ingresos por mes — {yearly?.year}</h3>
+        <div className="bg-white border border-gray-200 rounded-xl p-4 sm:p-5 shadow-sm">
+          <div className="flex items-center gap-3 mb-4 sm:mb-5">
+            <h3 className="font-display font-bold text-sm sm:text-base text-gray-900">Ingresos por mes — {yearly?.year}</h3>
             <div className="flex-1 h-px bg-gray-100" />
           </div>
           {chartData.length > 0 ? (
-            <div className="h-56">
+            <div className="h-48 sm:h-56">
               <ResponsiveContainer width="100%" height="100%">
                 <BarChart data={chartData} margin={{ top: 4, right: 4, left: 0, bottom: 0 }}>
                   <CartesianGrid strokeDasharray="3 3" stroke="#f3f4f6" vertical={false} />
@@ -103,9 +103,9 @@ export default function SalesPanel() {
           )}
         </div>
 
-        <div className="bg-white border border-gray-200 rounded-xl p-5 shadow-sm">
-          <div className="flex items-center gap-3 mb-5">
-            <h3 className="font-display font-bold text-base text-gray-900">Resumen — {monthName} {monthly?.year}</h3>
+        <div className="bg-white border border-gray-200 rounded-xl p-4 sm:p-5 shadow-sm">
+          <div className="flex items-center gap-3 mb-4 sm:mb-5">
+            <h3 className="font-display font-bold text-sm sm:text-base text-gray-900">Resumen — {monthName} {monthly?.year}</h3>
             <div className="flex-1 h-px bg-gray-100" />
           </div>
 
@@ -114,10 +114,10 @@ export default function SalesPanel() {
               <p className="text-[9px] font-bold tracking-[0.14em] uppercase text-gray-400 mb-3">Métodos de pago</p>
               <div className="divide-y divide-gray-100 mb-5">
                 {Object.entries(monthly.payment_methods).map(([k, v]) => (
-                  <div key={k} className="flex items-center justify-between py-2.5 text-sm">
-                    <span className="text-gray-500">{PM_LABELS[k] ?? k}</span>
-                    <div className="flex items-center gap-2.5 flex-shrink-0">
-                      <span className="text-[10px] text-gray-400 bg-gray-100 rounded px-1.5 py-0.5">{v.count ?? 0} pedidos</span>
+                  <div key={k} className="flex items-center justify-between py-2.5 text-sm gap-2">
+                    <span className="text-gray-500 truncate">{PM_LABELS[k] ?? k}</span>
+                    <div className="flex items-center gap-2 flex-shrink-0">
+                      <span className="text-[10px] text-gray-400 bg-gray-100 rounded px-1.5 py-0.5">{v.count ?? 0} ped.</span>
                       <span className="font-semibold text-gray-800">{fmt(v.total)}</span>
                     </div>
                   </div>

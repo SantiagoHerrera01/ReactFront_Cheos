@@ -42,7 +42,6 @@ Consume la API REST del backend GoBackend_Cheos.
 react / react-dom                 # Core React 19
 react-router-dom                  # Enrutamiento SPA
 recharts                          # Graficos para dashboard admin
-leaflet / react-leaflet           # Mapas interactivos (ubicaciones)
 sweetalert2                       # Alertas y confirmaciones
 lucide-react / react-icons        # Iconografia
 react-type-animation              # Animacion de tipeo

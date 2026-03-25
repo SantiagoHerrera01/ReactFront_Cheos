@@ -51,20 +51,20 @@ export default function ProductsPanel() {
   const chartData = allM.map(p => ({ name: (p.name?.trim() || '').slice(0, 12), unidades: p.quantity ?? 0 }))
 
   const kpis = [
-    { label: 'Unidades (mes)',  value: allM.reduce((s, p) => s + (p.quantity ?? 0), 0),      sub: monthName,    cls: 'text-amber-600' },
-    { label: 'Ingresos (mes)',  value: fmt(allM.reduce((s, p) => s + (p.revenue ?? 0), 0)),   sub: monthName,    cls: 'text-emerald-600' },
-    { label: 'Unidades (año)', value: allY.reduce((s, p) => s + (p.quantity ?? 0), 0),       sub: yearly?.year, cls: 'text-blue-600' },
-    { label: 'Ingresos (año)', value: fmt(allY.reduce((s, p) => s + (p.revenue ?? 0), 0)),   sub: yearly?.year, cls: 'text-coffee' },
+    { label: 'Unidades (mes)',  value: allM.reduce((s, p) => s + (p.quantity ?? 0), 0),    sub: monthName,    cls: 'text-amber-600' },
+    { label: 'Ingresos (mes)',  value: fmt(allM.reduce((s, p) => s + (p.revenue ?? 0), 0)), sub: monthName,    cls: 'text-emerald-600' },
+    { label: 'Unidades (año)', value: allY.reduce((s, p) => s + (p.quantity ?? 0), 0),     sub: yearly?.year, cls: 'text-blue-600' },
+    { label: 'Ingresos (año)', value: fmt(allY.reduce((s, p) => s + (p.revenue ?? 0), 0)), sub: yearly?.year, cls: 'text-coffee' },
   ]
 
   return (
-    <div className="space-y-5">
+    <div className="space-y-4 sm:space-y-5">
 
       <div className="grid grid-cols-2 xl:grid-cols-4 gap-3">
         {kpis.map(({ label, value, sub, cls }) => (
-          <div key={label} className="bg-white border border-gray-200 rounded-xl p-5 hover:border-gray-300 hover:shadow-sm transition-all">
+          <div key={label} className="bg-white border border-gray-200 rounded-xl p-4 sm:p-5 hover:border-gray-300 hover:shadow-sm transition-all">
             <p className="text-[9px] font-bold tracking-[0.14em] uppercase text-gray-400 mb-1">{label}</p>
-            <p className={`font-display font-bold text-2xl leading-tight mb-1 ${cls}`}>{value}</p>
+            <p className={`font-display font-bold text-xl sm:text-2xl leading-tight mb-1 ${cls}`}>{value}</p>
             <p className="text-[11px] text-gray-400">{sub}</p>
           </div>
         ))}
@@ -72,13 +72,13 @@ export default function ProductsPanel() {
 
       <div className="grid grid-cols-1 lg:grid-cols-2 gap-4">
 
-        <div className="bg-white border border-gray-200 rounded-xl p-5 shadow-sm">
-          <div className="flex items-center gap-3 mb-5">
-            <h3 className="font-display font-bold text-base text-gray-900">Unidades por producto — {monthName}</h3>
+        <div className="bg-white border border-gray-200 rounded-xl p-4 sm:p-5 shadow-sm">
+          <div className="flex items-center gap-3 mb-4 sm:mb-5">
+            <h3 className="font-display font-bold text-sm sm:text-base text-gray-900">Unidades por producto — {monthName}</h3>
             <div className="flex-1 h-px bg-gray-100" />
           </div>
           {chartData.length > 0 ? (
-            <div className="h-56">
+            <div className="h-48 sm:h-56">
               <ResponsiveContainer width="100%" height="100%">
                 <BarChart data={chartData} margin={{ top: 4, right: 4, left: 0, bottom: 0 }}>
                   <CartesianGrid strokeDasharray="3 3" stroke="#f3f4f6" vertical={false} />
@@ -100,14 +100,14 @@ export default function ProductsPanel() {
           )}
         </div>
 
-        <div className="bg-white border border-gray-200 rounded-xl p-5 shadow-sm">
-          <div className="flex items-center gap-3 mb-5">
-            <h3 className="font-display font-bold text-base text-gray-900">Más vendidos — {monthName}</h3>
+        <div className="bg-white border border-gray-200 rounded-xl p-4 sm:p-5 shadow-sm">
+          <div className="flex items-center gap-3 mb-4 sm:mb-5">
+            <h3 className="font-display font-bold text-sm sm:text-base text-gray-900">Más vendidos — {monthName}</h3>
             <div className="flex-1 h-px bg-gray-100" />
           </div>
 
           {allM.length > 0 ? (
-            <div className="space-y-4">
+            <div className="space-y-3 sm:space-y-4">
               {allM.map((p, i) => {
                 const pct = Math.round((p.quantity / (allM[0]?.quantity ?? 1)) * 100)
                 return (
@@ -117,9 +117,9 @@ export default function ProductsPanel() {
                         <span className="text-[10px] font-bold text-gray-300 w-5 flex-shrink-0">#{i + 1}</span>
                         <span className="text-gray-700 font-medium truncate">{p.name?.trim()}</span>
                       </div>
-                      <div className="flex items-center gap-2.5 flex-shrink-0">
+                      <div className="flex items-center gap-1.5 sm:gap-2.5 flex-shrink-0">
                         <span className="text-[11px] text-gray-400">{p.quantity} uds</span>
-                        <span className="font-semibold text-gray-900">{fmt(p.revenue)}</span>
+                        <span className="font-semibold text-gray-900 text-xs sm:text-sm">{fmt(p.revenue)}</span>
                       </div>
                     </div>
                     <div className="w-full h-1 bg-gray-100 rounded-full overflow-hidden">
